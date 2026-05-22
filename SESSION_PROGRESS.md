@@ -1,6 +1,6 @@
 ﻿# 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-22 (session 13 — edge-edit & rotate-point modes)  
+> **Last updated:** 2026-05-22 (session 14 — UX overhaul v2)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -52,7 +52,7 @@ No circular dependencies. Domain has zero external dependencies.
 - Grid toggle (fast-path, no rebuild) + Snap to grid
 - Texture load/replace/remove with live preview (Apply/Cancel)
 - **Edge-Edit mode** (✏ toolbar toggle): hover highlights edges, left-click attach/detach; highlight color configurable in Settings → 2D View
-- **Rotate-by-Point mode** (⊙ toolbar toggle): white dots at all piece vertices; click pivot → click handle → live rotation follows mouse; click anywhere to confirm; Ctrl+Z undoable
+- **Rotate-by-Point mode** (⊙ toolbar toggle, icon-only): white dots at all piece vertices; click pivot → click handle → live rotation follows mouse; click anywhere to confirm; Ctrl+Z undoable
 - **2D canvas texture rendering**: per-triangle affine UV mapping (Cramer's rule) — 2D pieces reflect texture in real-time; updates on change/remove
 - **App icon** (`Assets/app.ico`, 6 sizes 16–256px) embedded in exe and window title bar
 - Unfold setup dialog: real-world scale + paper size
@@ -85,6 +85,11 @@ No circular dependencies. Domain has zero external dependencies.
 | Rotate/flip pieces are now undoable (Ctrl+Z) | ✅ Session 12 |
 | Edge-Edit mode (hover highlight + LMB attach/detach) | ✅ Session 13 |
 | Rotate-by-Point mode (pivot + handle → live rotation) | ✅ Session 13 |
+| Click empty 3D/2D canvas → deselect all pieces | ✅ Session 14 |
+| Middle-mouse pan in 2D canvas (scrollbars hidden) | ✅ Session 14 |
+| Icon-only compact buttons in both toolbars | ✅ Session 14 |
+| Paper size moved to Settings → 2D View (live on apply) | ✅ Session 14 |
+| Lasso rubber-band selection (LMB drag on empty canvas) | ✅ Session 14 |
 | OBJ invalid vertex refs silently skipped (no crash) | ✅ Session 12 |
 
 ---
@@ -183,6 +188,14 @@ No circular dependencies. Domain has zero external dependencies.
 | BUG-TEX | `BuildTextureBrush` used `Stretch=None` + pixel Viewport → DPI mismatch for 72-DPI images | Changed to `Viewport=(0,0,1,1)` + `Stretch=Fill`; source now UV [0,1] (DPI-agnostic) |
 | TD-R2 | `_edgeOverrides.ToDictionary(k=>k.Key, v=>v.Value)` confusing idiom | Replaced with `new Dictionary<int,EdgeType>(_edgeOverrides)` |
 | TD-S7-7 | `DrawPageAt` parameter used fully-qualified `Domain.Settings.AppSettings.View2DSettings?` | Added `using FourHUnfolder.Domain.Settings;`; shortened to `AppSettings.View2DSettings?` |
+
+### Session 14 tech debt
+
+| ID | Priority | Description | Suggestion |
+|----|----------|-------------|-----------|
+| TD-S14-1 | Low | Lasso does bbox vs bbox intersection — a very thin rotated piece could have a large bbox and be incorrectly included | Use SAT (Separating Axis Theorem) instead of AABB intersection |
+| TD-S14-2 | Low | Pan speed is 1:1 pixel, no acceleration — for very large canvases, panning to far corners requires many swipes | Add inertia or pan speed multiplier |
+| TD-S14-3 | Low | Paper size in Settings applies only on OK (not live while dialog is open) | Connect SettingsViewModel.DefaultPaperSizeName change directly to VM |
 
 ### Session 13 tech debt
 

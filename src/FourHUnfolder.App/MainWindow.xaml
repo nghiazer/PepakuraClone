@@ -11,28 +11,13 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-        <Style x:Key="ToolBtn" TargetType="Button">
-            <Setter Property="Margin"   Value="4,2"/>
-            <Setter Property="Padding"  Value="12,6"/>
-            <Setter Property="MinWidth" Value="100"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Cursor"   Value="Hand"/>
-        </Style>
-        <Style x:Key="TexBtn" TargetType="Button">
-            <Setter Property="Margin"   Value="4,2"/>
-            <Setter Property="Padding"  Value="9,5"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Cursor"   Value="Hand"/>
-        </Style>
-        <Style x:Key="ApplyBtn" TargetType="Button" BasedOn="{StaticResource TexBtn}">
-            <Setter Property="Background"  Value="#1a4a1a"/>
-            <Setter Property="Foreground"  Value="#90ee90"/>
-            <Setter Property="BorderBrush" Value="#2a8a2a"/>
-        </Style>
-        <Style x:Key="CancelBtn" TargetType="Button" BasedOn="{StaticResource TexBtn}">
-            <Setter Property="Background"  Value="#4a1a1a"/>
-            <Setter Property="Foreground"  Value="#ff9090"/>
-            <Setter Property="BorderBrush" Value="#8a2a2a"/>
+        <!-- Compact icon-only style for main toolbar -->
+        <Style x:Key="IconBtn" TargetType="Button">
+            <Setter Property="Margin"    Value="2,1"/>
+            <Setter Property="Padding"   Value="7,5"/>
+            <Setter Property="FontSize"  Value="15"/>
+            <Setter Property="Cursor"    Value="Hand"/>
+            <Setter Property="MinWidth"  Value="32"/>
         </Style>
     </Window.Resources>
 
@@ -136,52 +121,42 @@
             </StatusBarItem>
         </StatusBar>
 
-        <!-- ═══ Row 2 — main toolbar ══════════════════════════════════════ -->
-        <Border Grid.Row="2" Background="#ecf0f1" Padding="6,4">
-            <StackPanel Orientation="Horizontal">
-                <Button Style="{StaticResource ToolBtn}" Content="📂  Load Mesh"
+        <!-- ═══ Row 2 — main toolbar (icon-only) ════════════════════════════ -->
+        <Border Grid.Row="2" Background="#ecf0f1" Padding="4,2">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Style="{StaticResource IconBtn}" Content="📂"
                         Command="{Binding LoadMeshCommand}"
-                        ToolTip="Load a Wavefront OBJ file"/>
+                        ToolTip="Load Mesh (.obj)"/>
                 <Separator/>
-                <Button Style="{StaticResource ToolBtn}" Content="⚙  Unfold"
+                <Button Style="{StaticResource IconBtn}" Content="⚙"
                         Command="{Binding UnfoldCommand}" IsEnabled="{Binding CanUnfold}"
-                        ToolTip="Open setup dialog and unfold the mesh"/>
+                        ToolTip="Unfold — open setup dialog"/>
                 <Separator/>
-                <Button Style="{StaticResource ToolBtn}" Content="💾  Export SVG"
+                <Button Style="{StaticResource IconBtn}" Content="💾"
                         Command="{Binding ExportSvgCommand}" IsEnabled="{Binding CanExport}"
-                        ToolTip="Export the 2-D pattern as SVG"/>
+                        ToolTip="Export SVG pattern"/>
                 <Separator/>
-                <Button Style="{StaticResource ToolBtn}" Content="📁  Save Project"
+                <Button Style="{StaticResource IconBtn}" Content="📁"
                         Command="{Binding SaveProjectCommand}" IsEnabled="{Binding CanExport}"
-                        ToolTip="Save editing progress to a .pmc file"/>
-                <Button Style="{StaticResource ToolBtn}" Content="📂  Load Project"
+                        ToolTip="Save project (.pmc)"/>
+                <Button Style="{StaticResource IconBtn}" Content="📂"
                         Command="{Binding LoadProjectCommand}"
-                        ToolTip="Load a previously saved .pmc project"/>
+                        ToolTip="Load project (.pmc)"/>
                 <Separator/>
-                <Button Style="{StaticResource ToolBtn}" Content="↩  Undo"
-                        Command="{Binding UndoCommand}"
-                        IsEnabled="{Binding CanUndo}"
-                        ToolTip="Undo last join/split/detach/attach  (Ctrl+Z)"/>
-                <Button Style="{StaticResource ToolBtn}" Content="↪  Redo"
-                        Command="{Binding RedoCommand}"
-                        IsEnabled="{Binding CanRedo}"
+                <Button Style="{StaticResource IconBtn}" Content="↩"
+                        Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"
+                        ToolTip="Undo  (Ctrl+Z)"/>
+                <Button Style="{StaticResource IconBtn}" Content="↪"
+                        Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"
                         ToolTip="Redo  (Ctrl+Y)"/>
                 <Separator/>
-                <Button Style="{StaticResource ToolBtn}" Content="⚙  Settings"
+                <Button Style="{StaticResource IconBtn}" Content="⚙"
                         Command="{Binding OpenSettingsCommand}"
-                        ToolTip="Open application settings (3D View / 2D View / Print)"/>
-                <Button Style="{StaticResource ToolBtn}" Content="🎨  Texture"
+                        ToolTip="Settings (3D / 2D / Print / General)"/>
+                <Button Style="{StaticResource IconBtn}" Content="🎨"
                         Click="TextureButton_Click"
                         Visibility="{Binding TexturePanelVisible}"
-                        ToolTip="Open texture manager"/>
-                <Separator/>
-                <TextBlock Text="📄" VerticalAlignment="Center" FontSize="13" Margin="4,0,4,0"/>
-                <ComboBox x:Name="PaperSizeCombo"
-                          ItemsSource="{Binding AvailablePaperSizes}"
-                          SelectedItem="{Binding PaperSizeModel, Mode=TwoWay}"
-                          DisplayMemberPath="Name"
-                          Width="110" VerticalAlignment="Center" Margin="0,0,4,0"
-                          ToolTip="Change paper size (takes effect immediately)"/>
+                        ToolTip="Texture manager"/>
             </StackPanel>
         </Border>
 

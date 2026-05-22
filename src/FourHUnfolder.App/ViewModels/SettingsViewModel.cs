@@ -47,6 +47,11 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool   _snapToGrid            = false;
     [ObservableProperty] private double _defaultPixelsPerMm    = 3.0;
     [ObservableProperty] private string _edgeHoverColor        = "#ffff9900";
+    [ObservableProperty] private string _defaultPaperSizeName = "A4";
+
+    public IReadOnlyList<string> PaperSizeNames { get; } =
+        FourHUnfolder.Domain.Models.PaperSizeModel.Presets
+            .Select(p => p.Name).ToArray();
 
     // ── General ───────────────────────────────────────────────────────────────
     [ObservableProperty] private string _displayUnit = "mm";
@@ -113,7 +118,8 @@ public partial class SettingsViewModel : ObservableObject
         PieceGapMm         = s.View2D.PieceGapMm;
         SnapToGrid         = s.View2D.SnapToGrid;
         DefaultPixelsPerMm = s.View2D.DefaultPixelsPerMm;
-        EdgeHoverColor     = s.View2D.EdgeHoverColor;
+        EdgeHoverColor         = s.View2D.EdgeHoverColor;
+        DefaultPaperSizeName   = s.View2D.DefaultPaperSizeName;
 
         // General
         DisplayUnit = s.General.DisplayUnit;
@@ -175,7 +181,8 @@ public partial class SettingsViewModel : ObservableObject
             PieceGapMm         = PieceGapMm,
             SnapToGrid         = SnapToGrid,
             DefaultPixelsPerMm = DefaultPixelsPerMm,
-            EdgeHoverColor     = EdgeHoverColor
+            EdgeHoverColor         = EdgeHoverColor,
+            DefaultPaperSizeName   = DefaultPaperSizeName
         },
         Print = new()
         {

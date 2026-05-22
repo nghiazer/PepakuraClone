@@ -54,6 +54,8 @@ public partial class MainWindow : Window
         int faceId = HitTestFace(e.GetPosition(Viewport3D.Viewport));
         if (faceId >= 0)
             Vm.SelectFace3D(faceId);
+        else
+            Vm.ClearSelection();   // click on empty 3D space → deselect
         // Do NOT set e.Handled — let HelixToolkit keep orbit control
     }
 

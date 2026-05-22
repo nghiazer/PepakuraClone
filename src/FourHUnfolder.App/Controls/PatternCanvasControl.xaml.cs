@@ -32,6 +32,16 @@ public partial class PatternCanvasControl : UserControl
     // TD-4 fix: explicit subscription tracking to prevent memory leaks
     private readonly Dictionary<PieceViewModel, PropertyChangedEventHandler> _pieceHandlers = new();
 
+    // lasso (rubber-band) selection
+    private bool       _lassoActive;
+    private Point      _lassoOrigin;
+    private Rectangle? _lassoRect;
+
+    // middle-mouse pan
+    private bool   _panActive;
+    private Point  _panOriginMouse;
+    private double _panOriginScrollH, _panOriginScrollV;
+
     // edge-edit mode
     private bool  _editModeActive;
     private Line? _hoveredEdgeLine;   // currently highlighted edge (restored on leave / mode-off)
@@ -480,12 +490,32 @@ public partial class PatternCanvasControl : UserControl
             e.Handled = true;
             return;
         }
-        // Click on empty canvas (not on a piece or dot): deselect all
-        if (_vm != null && !_editModeActive && !_rotatePtActive)
+
+        // Normal mode: start lasso selection on empty canvas
+        if (_editModeActive || _rotatePtActive) return;
+
+        bool multiMod = (Keyboard.Modifiers & (ModifierKeys.Shift | ModifierKeys.Control)) != 0;
+
+        // Deselect all immediately if no modifier key
+        if (!multiMod) _vm?.ClearSelection();
+
+        // Begin rubber-band lasso
+        _lassoActive = true;
+        _lassoOrigin = e.GetPosition(RootCanvas);
+        _lassoRect   = new Rectangle
         {
-            foreach (var p in _vm.Pieces) p.IsSelected = false;
-            _vm.ClearSelection();
-        }
+            Stroke          = Brushes.DodgerBlue,
+            StrokeThickness = 1.5,
+            StrokeDashArray = new DoubleCollection([4, 2]),
+            Fill            = new SolidColorBrush(Color.FromArgb(25, 30, 100, 255)),
+            IsHitTestVisible = false
+        };
+        Canvas.SetLeft(_lassoRect, _lassoOrigin.X);
+        Canvas.SetTop (_lassoRect, _lassoOrigin.Y);
+        Panel.SetZIndex(_lassoRect, 200);
+        RootCanvas.Children.Add(_lassoRect);
+        RootCanvas.CaptureMouse();
+        e.Handled = true;
     }
 
     private void Canvas_MouseMove(object sender, MouseEventArgs e)
@@ -509,6 +539,19 @@ public partial class PatternCanvasControl : UserControl
             _rotPiece.Rotation  = (newRotDeg % 360 + 360) % 360;
             SyncTransform(_rotPiece);
             UpdateVtxDotPositions(_rotPiece);
+            return;
+        }
+
+        // Lasso resize
+        if (_lassoActive && _lassoRect != null)
+        {
+            var lpos = e.GetPosition(RootCanvas);
+            double lx = Math.Min(lpos.X, _lassoOrigin.X);
+            double ly = Math.Min(lpos.Y, _lassoOrigin.Y);
+            Canvas.SetLeft(_lassoRect, lx);
+            Canvas.SetTop (_lassoRect, ly);
+            _lassoRect.Width  = Math.Abs(lpos.X - _lassoOrigin.X);
+            _lassoRect.Height = Math.Abs(lpos.Y - _lassoOrigin.Y);
             return;
         }
 
@@ -557,6 +600,30 @@ public partial class PatternCanvasControl : UserControl
 
     private void Canvas_MouseUp(object sender, MouseEventArgs e)
     {
+        // Lasso selection confirm
+        if (_lassoActive)
+        {
+            RootCanvas.ReleaseMouseCapture();
+            if (_lassoRect != null)
+            {
+                RootCanvas.Children.Remove(_lassoRect);
+                // Only apply selection if lasso is bigger than a click
+                if (_lassoRect.Width > 3 || _lassoRect.Height > 3)
+                {
+                    var lassoR = new Rect(
+                        Canvas.GetLeft(_lassoRect), Canvas.GetTop(_lassoRect),
+                        _lassoRect.Width, _lassoRect.Height);
+                    if (_vm != null)
+                        foreach (var p in _vm.Pieces)
+                            if (PieceBoundsCanvas(p).IntersectsWith(lassoR))
+                                p.IsSelected = true;
+                }
+                _lassoRect = null;
+            }
+            _lassoActive = false;
+            return;
+        }
+
         if (_dragging == null) return;
         RootCanvas.ReleaseMouseCapture();
 
@@ -649,6 +716,35 @@ public partial class PatternCanvasControl : UserControl
     // ── snap toggle (via ViewModel command) ──────────────────────────────────
     private void SnapToggle_Click(object s, RoutedEventArgs e) =>
         _vm?.ToggleSnapCommand.Execute(null);
+
+    // ── middle-mouse pan ─────────────────────────────────────────────────────
+
+    private void Scroller_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.MiddleButton != MouseButtonState.Pressed) return;
+        _panActive         = true;
+        _panOriginMouse    = e.GetPosition(Scroller);
+        _panOriginScrollH  = Scroller.HorizontalOffset;
+        _panOriginScrollV  = Scroller.VerticalOffset;
+        Scroller.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void Scroller_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_panActive) return;
+        var pos = e.GetPosition(Scroller);
+        Scroller.ScrollToHorizontalOffset(Math.Max(0, _panOriginScrollH - (pos.X - _panOriginMouse.X)));
+        Scroller.ScrollToVerticalOffset  (Math.Max(0, _panOriginScrollV - (pos.Y - _panOriginMouse.Y)));
+    }
+
+    private void Scroller_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_panActive || e.MiddleButton != MouseButtonState.Released) return;
+        _panActive = false;
+        Scroller.ReleaseMouseCapture();
+        e.Handled = true;
+    }
 
     // ── zoom (mouse wheel, centered on cursor) ───────────────────────────────
     private void Scroller_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -896,6 +992,32 @@ public partial class PatternCanvasControl : UserControl
             : HexBrush(s2d?.CutLineColor,  "#ff0000");
         line.StrokeThickness = isFold ? (s2d?.FoldLineWidth ?? 0.8) : (s2d?.CutLineWidth ?? 1.0);
         line.StrokeDashArray = isFold ? ParseDash(s2d?.FoldLineDash ?? "4,2") : null;
+    }
+
+    // ── lasso helper ─────────────────────────────────────────────────────────
+
+    /// Returns the axis-aligned bounding box of a piece in RootCanvas pixel coordinates.
+    private Rect PieceBoundsCanvas(PieceViewModel piece)
+    {
+        if (piece.Faces.Length == 0) return Rect.Empty;
+        var allLx = piece.Faces.SelectMany(f => new[] { f.V0.X, f.V1.X, f.V2.X });
+        var allLy = piece.Faces.SelectMany(f => new[] { f.V0.Y, f.V1.Y, f.V2.Y });
+        double lMinX = allLx.Min(), lMaxX = allLx.Max();
+        double lMinY = allLy.Min(), lMaxY = allLy.Max();
+
+        double rotRad = piece.Rotation * Math.PI / 180.0;
+        double cosR = Math.Cos(rotRad), sinR = Math.Sin(rotRad);
+        double[] cx = new double[4], cy = new double[4];
+        int i = 0;
+        foreach (var (lx, ly) in new[] {(lMinX,lMinY),(lMaxX,lMinY),(lMinX,lMaxY),(lMaxX,lMaxY)})
+        {
+            double px = lx * _pxPerMm, py = ly * _pxPerMm;
+            cx[i] = px * cosR - py * sinR + piece.PositionX * _pxPerMm + PaperMarginPx;
+            cy[i] = px * sinR + py * cosR + piece.PositionY * _pxPerMm + PaperMarginPx;
+            i++;
+        }
+        double minX = cx.Min(), minY = cy.Min();
+        return new Rect(minX, minY, cx.Max() - minX, cy.Max() - minY);
     }
 
     // ── affine UV texture mapping ─────────────────────────────────────────────

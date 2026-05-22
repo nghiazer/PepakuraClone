@@ -176,6 +176,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
         GridVisible = S.View2D.ShowGrid;
         SnapToGrid  = S.View2D.SnapToGrid;
 
+        // Update paper size if the default changed
+        var matchedPaper = PaperSizeModel.Presets
+            .FirstOrDefault(p => p.Name == S.View2D.DefaultPaperSizeName);
+        if (matchedPaper != null) PaperSizeModel = matchedPaper;
+
         OnPropertyChanged(nameof(Viewport3DBackground));
         OnPropertyChanged(nameof(Show3DCoordinateSystem));
         OnPropertyChanged(nameof(Show3DViewCube));
@@ -516,9 +521,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             : $"Selected face {faceId}  (no 2D piece — unfold first)";
     }
 
-    /// Called from 2D canvas when empty space is clicked (deselect all).
+    /// Called when empty space is clicked (deselect all).
     public void ClearSelection()
     {
+        foreach (var p in Pieces) p.IsSelected = false;
         SelectionOverlayModel = null;
         _cachedOverlayGroupId = null;
         _cachedOverlayModel   = null;

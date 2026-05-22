@@ -531,6 +531,19 @@
                     </Grid>
                 </GroupBox>
 
+                <GroupBox Header="Paper Size">
+                    <Grid Margin="0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Default paper size" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding PaperSizeNames}"
+                                  SelectedItem="{Binding DefaultPaperSizeName}"/>
+                    </Grid>
+                </GroupBox>
+
                 <GroupBox Header="Piece Layout">
                     <StackPanel>
                         <Grid Margin="0,4">
