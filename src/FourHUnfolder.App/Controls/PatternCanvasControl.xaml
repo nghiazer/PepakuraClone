@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="FourHUnfolder.App.Controls.PatternCanvasControl"
+<UserControl x:Class="FourHUnfolder.App.Controls.PatternCanvasControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Background="#3a3a5a">
@@ -7,46 +7,43 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Scrollable canvas area -->
-        <ScrollViewer Grid.Row="0"
-                      x:Name="Scroller"
-                      HorizontalScrollBarVisibility="Auto"
-                      VerticalScrollBarVisibility="Auto"
-                      Background="#2a2a4a">
-            <Canvas x:Name="RootCanvas"
-                    Background="Transparent"
-                    MouseMove="Canvas_MouseMove"
-                    MouseLeftButtonDown="Canvas_LeftDown"
-                    MouseLeftButtonUp="Canvas_MouseUp"
-                    MouseLeave="Canvas_MouseUp"/>
-        </ScrollViewer>
+        <!-- Scrollable canvas area + zoom indicator overlay -->
+        <Grid Grid.Row="0">
+            <ScrollViewer x:Name="Scroller"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"
+                          Background="#2a2a4a"
+                          PreviewMouseWheel="Scroller_PreviewMouseWheel">
+                <Canvas x:Name="RootCanvas"
+                        Background="Transparent"
+                        MouseMove="Canvas_MouseMove"
+                        MouseLeftButtonDown="Canvas_LeftDown"
+                        MouseLeftButtonUp="Canvas_MouseUp"
+                        MouseLeave="Canvas_MouseUp"/>
+            </ScrollViewer>
+
+            <!-- Zoom level badge (top-right, non-interactive) -->
+            <Border HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,6,24,0" Padding="6,2"
+                    Background="#99000022" CornerRadius="3" IsHitTestVisible="False">
+                <TextBlock x:Name="ZoomLabel" Text="3.0 px/mm"
+                           Foreground="#aaaacc" FontSize="11"/>
+            </Border>
+        </Grid>
 
         <!-- Bottom toolbar -->
         <Border Grid.Row="1" Background="#1a1a30" Padding="8,4">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Zoom:" Foreground="#aaaacc" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                <Slider x:Name="ZoomSlider"
-                        Minimum="0.5" Maximum="10" Value="3"
-                        Width="160" VerticalAlignment="Center"
-                        ValueChanged="Zoom_Changed"/>
-                <TextBlock x:Name="ZoomLabel" Text="3.0 px/mm"
-                           Foreground="#aaaacc" Width="60" Margin="4,0"
-                           VerticalAlignment="Center"/>
-                <Separator Margin="8,0"/>
-                <Button Content="⟲ Rotate –90°" Click="RotateCCW_Click"
+                <Button Content="⟲ –90°" Click="RotateCCW_Click"
                         Padding="8,3" Margin="2" Cursor="Hand"
-                        ToolTip="Rotate selected piece 90° counter-clockwise"/>
-                <Button Content="⟳ Rotate +90°" Click="RotateCW_Click"
+                        ToolTip="Rotate selected piece(s) 90° counter-clockwise"/>
+                <Button Content="⟳ +90°" Click="RotateCW_Click"
                         Padding="8,3" Margin="2" Cursor="Hand"
-                        ToolTip="Rotate selected piece 90° clockwise"/>
-                <Button Content="↔ Flip H" Click="FlipH_Click"
-                        Padding="8,3" Margin="2" Cursor="Hand"
-                        ToolTip="Flip selected piece horizontally"/>
+                        ToolTip="Rotate selected piece(s) 90° clockwise"/>
                 <Separator Margin="8,0"/>
                 <Button Content="✦ Auto-arrange" Click="AutoArrange_Click"
                         Padding="8,3" Margin="2" Cursor="Hand"
                         ToolTip="Pack all pieces onto the paper automatically"/>
-                <Separator Margin="8,0"/>
                 <Separator Margin="8,0"/>
                 <ToggleButton x:Name="RotatePointBtn"
                               Content="⊙ Rotate Point"
@@ -64,7 +61,7 @@
                               IsChecked="{Binding GridVisible, Mode=OneWay}"
                               Click="GridToggle_Click"
                               Padding="8,3" Margin="2" Cursor="Hand"
-                              ToolTip="Show / hide the grid (does not require rebuild)"/>
+                              ToolTip="Show / hide the grid"/>
                 <ToggleButton x:Name="SnapToggleBtn"
                               Content="⊟ Snap"
                               IsChecked="{Binding SnapToGrid, Mode=OneWay}"

@@ -29,4 +29,9 @@ public sealed class PaperSizeModel
         [A4, A3, A2, A1, Letter, Legal];
 
     public override string ToString() => $"{Name}  ({WidthMm:F0}×{HeightMm:F0} mm)";
+
+    public override bool Equals(object? obj) =>
+        obj is PaperSizeModel o && Name == o.Name && WidthMm == o.WidthMm && HeightMm == o.HeightMm;
+
+    public override int GetHashCode() => HashCode.Combine(Name, WidthMm, HeightMm);
 }

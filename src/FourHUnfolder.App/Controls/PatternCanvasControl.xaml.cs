@@ -48,10 +48,12 @@ public partial class PatternCanvasControl : UserControl
     private double          _handleAngle0;            // initial pivot→handle angle when drag started
     private double          _pieceRotation0;          // piece.Rotation when drag started
 
-    // drag state
-    private PieceViewModel? _dragging;
+    // drag state — multi-piece
+    private PieceViewModel? _dragging;       // "leader" piece (the one that was clicked)
     private Point           _dragOriginMouse;
     private double          _dragOriginX, _dragOriginY;
+    // origin positions of ALL selected pieces captured at drag start
+    private Dictionary<int, (double X, double Y)>? _multiDragOrigins;
 
     // TD-N6: pre-drag snapshot for undo support (captured on MouseDown)
     private Dictionary<int, (double X, double Y, double Rot)>? _preDragPositions;
@@ -76,7 +78,7 @@ public partial class PatternCanvasControl : UserControl
         if (_vm == null) return;
 
         _pxPerMm = _vm.PixelsPerMm;
-        ZoomSlider.Value = _pxPerMm;
+        if (ZoomLabel != null) ZoomLabel.Text = $"{_pxPerMm:F1} px/mm";
 
         _vm.Pieces.CollectionChanged += OnPiecesChanged;
         _vm.PropertyChanged          += OnVmPropertyChanged;
@@ -432,11 +434,22 @@ public partial class PatternCanvasControl : UserControl
         if (_editModeActive || _rotatePtActive) return;   // special modes suppress drag
         if (sender is not Canvas c || c.Tag is not PieceViewModel piece) return;
 
+        bool multiMod = (Keyboard.Modifiers & (ModifierKeys.Shift | ModifierKeys.Control)) != 0;
+
         if (_vm != null)
         {
-            foreach (var p in _vm.Pieces)
-                p.IsSelected = (p == piece);
-            _vm.SelectPiece2D(piece.GroupId);
+            if (multiMod)
+            {
+                // Toggle this piece in multi-selection
+                piece.IsSelected = !piece.IsSelected;
+                if (piece.IsSelected) _vm.SelectPiece2D(piece.GroupId);
+            }
+            else if (!piece.IsSelected)
+            {
+                // Single-select only if not already selected (allows dragging a group)
+                foreach (var p in _vm.Pieces) p.IsSelected = (p == piece);
+                _vm.SelectPiece2D(piece.GroupId);
+            }
         }
 
         _dragging        = piece;
@@ -444,7 +457,11 @@ public partial class PatternCanvasControl : UserControl
         _dragOriginX     = piece.PositionX;
         _dragOriginY     = piece.PositionY;
 
-        // Capture pre-drag layout snapshot for undo (TD-N6)
+        // Snapshot origins of every selected piece for multi-drag
+        _multiDragOrigins = _vm?.Pieces
+            .Where(p => p.IsSelected)
+            .ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY));
+
         _preDragPositions = _vm?.Pieces
             .ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
 
@@ -454,13 +471,20 @@ public partial class PatternCanvasControl : UserControl
 
     private void Canvas_LeftDown(object sender, MouseButtonEventArgs e)
     {
-        // In phase 2, a canvas click (not on a dot) confirms rotation
+        // Phase 2: canvas click confirms rotation
         if (_rotatePtPhase == 2)
         {
             if (_preDragPositions != null && _vm != null)
                 _vm.PushDragUndo(_preDragPositions);
             ResetRotatePhase();
             e.Handled = true;
+            return;
+        }
+        // Click on empty canvas (not on a piece or dot): deselect all
+        if (_vm != null && !_editModeActive && !_rotatePtActive)
+        {
+            foreach (var p in _vm.Pieces) p.IsSelected = false;
+            _vm.ClearSelection();
         }
     }
 
@@ -504,9 +528,31 @@ public partial class PatternCanvasControl : UserControl
             newY = Math.Round(newY / g) * g;
         }
 
-        _dragging.PositionX = newX;
-        _dragging.PositionY = newY;
-        SyncTransform(_dragging);
+        // Move all selected pieces by same delta
+        if (_multiDragOrigins != null && _vm != null)
+        {
+            foreach (var p in _vm.Pieces.Where(p => p.IsSelected))
+            {
+                if (!_multiDragOrigins.TryGetValue(p.GroupId, out var origin)) continue;
+                double px = origin.X + delta.X / _pxPerMm;
+                double py = origin.Y + delta.Y / _pxPerMm;
+                if ((_vm.SnapToGrid) && s2d != null && s2d.GridSizeMm > 0)
+                {
+                    double g = s2d.GridSizeMm;
+                    px = Math.Round(px / g) * g;
+                    py = Math.Round(py / g) * g;
+                }
+                p.PositionX = px;
+                p.PositionY = py;
+                SyncTransform(p);
+            }
+        }
+        else
+        {
+            _dragging.PositionX = newX;
+            _dragging.PositionY = newY;
+            SyncTransform(_dragging);
+        }
     }
 
     private void Canvas_MouseUp(object sender, MouseEventArgs e)
@@ -519,34 +565,32 @@ public partial class PatternCanvasControl : UserControl
 
         if (moved && _vm != null)
         {
-            // Push pre-drag snapshot for undo (TD-N6)
             if (_preDragPositions != null)
                 _vm.PushDragUndo(_preDragPositions);
 
-            // Expand page grid based on rotated bounding box (fix for unrotated bbox edge case)
-            if (_dragging.Faces.Length > 0)
+            // Expand page for each moved piece's rotated bounding box
+            var movedPieces = _multiDragOrigins != null
+                ? _vm.Pieces.Where(p => p.IsSelected && _multiDragOrigins.ContainsKey(p.GroupId))
+                : (IEnumerable<PieceViewModel>)[_dragging];
+
+            foreach (var piece in movedPieces.Where(p => p.Faces.Length > 0))
             {
-                var allX = _dragging.Faces.SelectMany(f => new[] { f.V0.X, f.V1.X, f.V2.X });
-                var allY = _dragging.Faces.SelectMany(f => new[] { f.V0.Y, f.V1.Y, f.V2.Y });
+                var allX = piece.Faces.SelectMany(f => new[] { f.V0.X, f.V1.X, f.V2.X });
+                var allY = piece.Faces.SelectMany(f => new[] { f.V0.Y, f.V1.Y, f.V2.Y });
                 double lMinX = allX.Min(), lMaxX = allX.Max();
                 double lMinY = allY.Min(), lMaxY = allY.Max();
-
-                double rotRad = _dragging.Rotation * Math.PI / 180.0;
+                double rotRad = piece.Rotation * Math.PI / 180.0;
                 double cosR = Math.Cos(rotRad), sinR = Math.Sin(rotRad);
-
-                // Check all four rotated bounding box corners
                 double[] cxs = { lMinX, lMaxX, lMinX, lMaxX };
                 double[] cys = { lMinY, lMinY, lMaxY, lMaxY };
-                double maxRx = cxs.Zip(cys, (x, y) => x * cosR - y * sinR).Max();
-                double maxRy = cxs.Zip(cys, (x, y) => x * sinR + y * cosR).Max();
-
                 _vm.EnsurePageForPosition(
-                    _dragging.PositionX + maxRx,
-                    _dragging.PositionY + maxRy);
+                    piece.PositionX + cxs.Zip(cys, (x, y) => x * cosR - y * sinR).Max(),
+                    piece.PositionY + cxs.Zip(cys, (x, y) => x * sinR + y * cosR).Max());
             }
         }
 
         _preDragPositions = null;
+        _multiDragOrigins = null;
         _dragging = null;
     }
 
@@ -581,23 +625,17 @@ public partial class PatternCanvasControl : UserControl
     private void RotateCW_Click (object s, RoutedEventArgs e) => RotateSelected(+90);
     private void RotateCCW_Click(object s, RoutedEventArgs e) => RotateSelected(-90);
 
-    private void FlipH_Click(object s, RoutedEventArgs e)
-    {
-        var piece = _vm?.Pieces.FirstOrDefault(p => p.IsSelected);
-        if (piece == null || _vm == null) return;
-        var pre = _vm.Pieces.ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
-        piece.Rotation = (180 - piece.Rotation + 360) % 360;
-        SyncTransform(piece);
-        _vm.PushDragUndo(pre);
-    }
-
     private void RotateSelected(double delta)
     {
-        var piece = _vm?.Pieces.FirstOrDefault(p => p.IsSelected);
-        if (piece == null || _vm == null) return;
+        if (_vm == null) return;
+        var selected = _vm.Pieces.Where(p => p.IsSelected).ToList();
+        if (selected.Count == 0) return;
         var pre = _vm.Pieces.ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
-        piece.Rotation = (piece.Rotation + delta + 360) % 360;
-        SyncTransform(piece);
+        foreach (var piece in selected)
+        {
+            piece.Rotation = (piece.Rotation + delta + 360) % 360;
+            SyncTransform(piece);
+        }
         _vm.PushDragUndo(pre);
     }
 
@@ -612,14 +650,29 @@ public partial class PatternCanvasControl : UserControl
     private void SnapToggle_Click(object s, RoutedEventArgs e) =>
         _vm?.ToggleSnapCommand.Execute(null);
 
-    // ── zoom ─────────────────────────────────────────────────────────────────
-    private void Zoom_Changed(object s, RoutedPropertyChangedEventArgs<double> e)
+    // ── zoom (mouse wheel, centered on cursor) ───────────────────────────────
+    private void Scroller_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        _pxPerMm = e.NewValue;
-        // ZoomLabel is null when Slider fires ValueChanged during InitializeComponent XAML parsing
-        if (ZoomLabel == null) return;
-        ZoomLabel.Text = $"{_pxPerMm:F1} px/mm";
-        if (_vm != null) { _vm.PixelsPerMm = _pxPerMm; RebuildAll(); }
+        e.Handled = true;   // prevent default scroll
+        double factor  = e.Delta > 0 ? 1.15 : 1.0 / 1.15;
+        double newPx   = Math.Max(0.5, Math.Min(12.0, _pxPerMm * factor));
+        if (Math.Abs(newPx - _pxPerMm) < 0.005) return;
+
+        // Canvas position under mouse (in logical pixels, before zoom change)
+        var mouseInViewport = e.GetPosition(Scroller);
+        double worldX = (Scroller.HorizontalOffset + mouseInViewport.X - PaperMarginPx) / _pxPerMm;
+        double worldY = (Scroller.VerticalOffset   + mouseInViewport.Y - PaperMarginPx) / _pxPerMm;
+
+        _pxPerMm = newPx;
+        if (_vm != null) _vm.PixelsPerMm = newPx;
+        if (ZoomLabel != null) ZoomLabel.Text = $"{_pxPerMm:F1} px/mm";
+        RebuildAll();
+
+        // Re-centre view on the same world point
+        double newCx = worldX * newPx + PaperMarginPx;
+        double newCy = worldY * newPx + PaperMarginPx;
+        Scroller.ScrollToHorizontalOffset(Math.Max(0, newCx - mouseInViewport.X));
+        Scroller.ScrollToVerticalOffset  (Math.Max(0, newCy - mouseInViewport.Y));
     }
 
     // ── rotate-by-point mode ──────────────────────────────────────────────────

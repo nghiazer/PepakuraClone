@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using Microsoft.Extensions.DependencyInjection;
+using FourHUnfolder.App.Dialogs;
 using FourHUnfolder.App.ViewModels;
 
 namespace FourHUnfolder.App;
@@ -13,6 +14,7 @@ namespace FourHUnfolder.App;
 public partial class MainWindow : Window
 {
     private MainViewModel Vm => (MainViewModel)DataContext;
+    private TextureDialog? _textureDialog;
 
     public MainWindow()
     {
@@ -105,6 +107,22 @@ public partial class MainWindow : Window
         }
 
         menu.IsOpen = true;
+    }
+
+    // ── texture dialog ────────────────────────────────────────────────────────
+
+    private void TextureButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_textureDialog == null || !_textureDialog.IsLoaded)
+        {
+            _textureDialog = new TextureDialog { Owner = this, DataContext = DataContext };
+            _textureDialog.Closed += (_, _) => _textureDialog = null;
+            _textureDialog.Show();
+        }
+        else
+        {
+            _textureDialog.Activate();
+        }
     }
 
     /// <returns>Face index (>= 0) or -1 if nothing was hit.</returns>
