@@ -1,4 +1,4 @@
-# PepakuraClone — Session Progress Log
+﻿# 4H-Unfolder — Session Progress Log
 
 > **Last updated:** 2026-05-22 (session 4 — first real build)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
@@ -13,8 +13,8 @@
 cd D:\CODING\UNFOLD
 dotnet restore
 dotnet build
-dotnet run --project src/PepakuraClone.App
-dotnet test tests/PepakuraClone.Tests
+dotnet run --project src/FourHUnfolder.App
+dotnet test tests/FourHUnfolder.Tests
 ```
 
 ---
@@ -69,7 +69,7 @@ No circular dependencies. Domain has zero external dependencies.
 
 | Item | Result |
 |------|--------|
-| `dotnet build PepakuraClone.sln` | ✅ 0 errors, 0 warnings |
+| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 0 warnings |
 | `dotnet test` | ✅ 16 / 16 passed |
 
 ---
@@ -79,11 +79,11 @@ No circular dependencies. Domain has zero external dependencies.
 | Session | Severity | Bug | Fix |
 |---------|----------|-----|-----|\
 | 4 (build) | Critical | `MainViewModel.cs` — extra spurious `}` after `CommitPreview` body, closing the class too early → `CS1022` | Removed extra brace |
-| 4 (build) | High | `App.xaml.cs` — `PepakuraClone.Application` namespace shadowed `System.Windows.Application` type → `CS0118` | Changed to `System.Windows.Application` explicit |
+| 4 (build) | High | `App.xaml.cs` — `FourHUnfolder.Application` namespace shadowed `System.Windows.Application` type → `CS0118` | Changed to `System.Windows.Application` explicit |
 | 4 (build) | High | `PatternCanvasControl.xaml.cs` — `file static class` with `operator *` → static classes can't hold user-defined operators → `CS0715` | Replaced with `private Point Sc(Point p)` instance method |
 | 4 (build) | High | `MainWindow.xaml.cs` — missing `using System.Windows.Media` → `VisualTreeHelper` / `PointHitTestParameters` not found | Added using |
 | 4 (build) | High | `MainViewModel.cs` — missing `using System.IO` explicit (WPF temp-csproj skips implicit usings) → `Path`/`File` not found | Added `using System.IO` |
-| 4 (build) | High | `MainViewModel.cs` — `Application.Current` resolved to `PepakuraClone.Application.Current` → `CS0234` | Added `using WpfApp = System.Windows.Application` alias |
+| 4 (build) | High | `MainViewModel.cs` — `Application.Current` resolved to `FourHUnfolder.Application.Current` → `CS0234` | Added `using WpfApp = System.Windows.Application` alias |
 | 4 (build) | Medium | `CommitPreview(_revert: true)` used old parameter name `_revert` after rename to `revert` → `CS1739` | Updated call site |
 | 4 (build) | Medium | `PieceViewModel.FaceData` missing `EdgeIsBoundary` field used by `PatternCanvasControl` → `CS1061` | Added field + populated in `Create()` |
 | 1 | Critical | `PatternCanvasControl` drag broken — wrong mouse-capture element | `RootCanvas.CaptureMouse()` |
@@ -152,7 +152,7 @@ Tests/                  MstAlgorithmTests (6) UnfoldEngineTests (9)
 
 ## Recommended Next Steps
 
-1. **Merge PR #1** on GitHub: <https://github.com/nghiazer/PepakuraClone/pull/1>
+1. **Merge PR #1** on GitHub: <https://github.com/nghiazer/4H-Unfolder/pull/1>
 3. Add **PDF export** via `PdfSharp`
 4. Add **piece outline merging** (compute union polygon of face triangles) for cleaner visuals
 5. Performance: replace O(n²) overlap check with spatial grid for meshes > 2 000 faces

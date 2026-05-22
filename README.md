@@ -1,4 +1,4 @@
-# PepakuraClone
+﻿# 4H-Unfolder
 
 A Pepakura-style paper model unfolder built with **WPF / .NET 8**.  
 Load a 3-D OBJ mesh, unfold it into a printable 2-D pattern, customise the layout, and export to SVG.
@@ -21,13 +21,13 @@ Load a 3-D OBJ mesh, unfold it into a printable 2-D pattern, customise the layou
 ```bash
 dotnet restore
 dotnet build          # 0 errors, 0 warnings
-dotnet run --project src/PepakuraClone.App
+dotnet run --project src/FourHUnfolder.App
 ```
 
 ### Tests
 
 ```bash
-dotnet test tests/PepakuraClone.Tests   # 16 / 16 pass
+dotnet test tests/FourHUnfolder.Tests   # 16 / 16 pass
 ```
 
 ---
@@ -79,7 +79,7 @@ Edge type visual key in the 2-D canvas:
 | Click piece (2-D) | Updates 3-D selection overlay — bidirectional sync |
 
 ### Settings (`⚙ Settings` button)
-Four sections, all persisted to `%AppData%\PepakuraClone\settings.json`:
+Four sections, all persisted to `%AppData%\4H-Unfolder\settings.json`:
 
 | Section | Notable options |
 |---------|----------------|
@@ -102,9 +102,9 @@ Four sections, all persisted to `%AppData%\PepakuraClone\settings.json`:
 ## Architecture
 
 ```
-PepakuraClone.sln
+4H-Unfolder.sln
 ├── src/
-│   ├── PepakuraClone.Domain          # Pure models — no external deps
+│   ├── FourHUnfolder.Domain          # Pure models — no external deps
 │   │   ├── Models/        Vertex, Edge (EdgeType), Face, Mesh
 │   │   │                  PaperSizeModel, ModelScale
 │   │   ├── DualGraph/     DualGraph, GraphNode, GraphEdge
@@ -112,21 +112,21 @@ PepakuraClone.sln
 │   │   ├── Settings/      AppSettings (View3D + View2D + Print + General)
 │   │   └── Persistence/   ProjectState (JSON DTO)
 │   │
-│   ├── PepakuraClone.Geometry        # Algorithms (→ Domain)
+│   ├── FourHUnfolder.Geometry        # Algorithms (→ Domain)
 │   │   └── Algorithms/    DualGraphBuilder, KruskalMstBuilder, EdgeMarker,
 │   │                       UnfoldEngine, OverlapDetector (AABB + SAT),
 │   │                       GlueTabGenerator, PieceComputer
 │   │
-│   ├── PepakuraClone.Application     # Use-case services (→ Domain, Geometry)
+│   ├── FourHUnfolder.Application     # Use-case services (→ Domain, Geometry)
 │   │   ├── Interfaces/    IMeshLoader, IExporter
 │   │   └── Services/      MeshService, UnfoldService,
 │   │                       ProjectSerializer, SettingsService
 │   │
-│   ├── PepakuraClone.Infrastructure  # I/O (→ Domain, Application)
+│   ├── FourHUnfolder.Infrastructure  # I/O (→ Domain, Application)
 │   │   ├── Loaders/       ObjMeshLoader
 │   │   └── Exporters/     SvgExporter
 │   │
-│   └── PepakuraClone.App             # WPF UI (→ Application, Infrastructure)
+│   └── FourHUnfolder.App             # WPF UI (→ Application, Infrastructure)
 │       ├── ViewModels/    MainViewModel, PieceViewModel, SettingsViewModel
 │       ├── Controls/      PatternCanvasControl
 │       ├── Dialogs/       UnfoldSetupDialog, SettingsDialog (4-panel)
@@ -134,7 +134,7 @@ PepakuraClone.sln
 │       └── MainWindow.xaml
 │
 └── tests/
-    └── PepakuraClone.Tests  # xunit + FluentAssertions — 15 tests
+    └── FourHUnfolder.Tests  # xunit + FluentAssertions — 15 tests
 ```
 
 ### Dependency graph
@@ -182,7 +182,7 @@ Domain ─→ Geometry ─→ Application ─→ Infrastructure ─→ App
 | `.obj` | Input mesh |
 | `.mtl` | Optional — diffuse texture path (`map_Kd`) |
 | `.png/.jpg/.bmp` | Texture images |
-| `.pmc` | PepakuraClone project — JSON session snapshot |
+| `.pmc` | 4H-Unfolder project — JSON session snapshot |
 | `.svg` | Export — printable 2-D pattern |
 
 ---

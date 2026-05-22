@@ -1,0 +1,62 @@
+﻿using System.Numerics;
+
+namespace FourHUnfolder.Domain.Models;
+
+/// <summary>
+/// Indexed triangle mesh.  Vertices, Edges, and Faces are stored in lists
+/// whose index equals the element's Id, giving O(1) lookup everywhere.
+/// </summary>
+public sealed class Mesh
+{
+    public List<Vertex> Vertices { get; } = new();
+    public List<Edge>   Edges    { get; } = new();
+    public List<Face>   Faces    { get; } = new();
+
+    // UV texture coordinates parsed from file (may be empty)
+    public List<Vector2> UVs { get; } = new();
+
+    // Per-face UV indices, always same count as Faces.
+    // Each tuple maps to (face.A, face.B, face.C); -1 means no UV for that vertex.
+    private readonly List<(int UA, int UB, int UC)> _faceUVs = new();
+    public IReadOnlyList<(int UA, int UB, int UC)> FaceUVs => _faceUVs;
+
+    /// Texture path suggested by the associated material file (e.g. from MTL).
+    public string? SuggestedTexturePath { get; set; }
+
+    // Maps canonical (min,max) vertex pair → edge index
+    private readonly Dictionary<(int, int), int> _edgeMap = new();
+
+    public void AddVertex(Vertex v) => Vertices.Add(v);
+
+    /// <param name="ua">UV index for vertex A (-1 if no UV)</param>
+    public void AddFace(int a, int b, int c, int ua = -1, int ub = -1, int uc = -1)
+    {
+        var faceId = Faces.Count;
+        var face   = new Face(faceId, a, b, c);
+        Faces.Add(face);
+        _faceUVs.Add((ua, ub, uc));
+
+        face.EdgeIds.Add(GetOrAddEdge(a, b, faceId));
+        face.EdgeIds.Add(GetOrAddEdge(b, c, faceId));
+        face.EdgeIds.Add(GetOrAddEdge(c, a, faceId));
+    }
+
+    public bool HasUVs => UVs.Count > 0 && _faceUVs.Count == Faces.Count;
+
+    private int GetOrAddEdge(int v1, int v2, int faceId)
+    {
+        var key = (Math.Min(v1, v2), Math.Max(v1, v2));
+
+        if (_edgeMap.TryGetValue(key, out var edgeId))
+        {
+            Edges[edgeId].FaceB = faceId;
+            return edgeId;
+        }
+
+        edgeId = Edges.Count;
+        var edge = new Edge(edgeId, v1, v2) { FaceA = faceId };
+        Edges.Add(edge);
+        _edgeMap[key] = edgeId;
+        return edgeId;
+    }
+}

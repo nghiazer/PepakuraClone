@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet new *)",
+      "PowerShell(dotnet --version 2>&1)"
+    ]
+  }
+}

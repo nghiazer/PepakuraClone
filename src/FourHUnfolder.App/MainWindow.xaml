@@ -1,0 +1,254 @@
+﻿<Window x:Class="FourHUnfolder.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:helix="http://helix-toolkit.org/wpf"
+        xmlns:ctrl="clr-namespace:FourHUnfolder.App.Controls"
+        Title="4H-Unfolder — Paper Model Unfolder"
+        Width="1400" Height="900"
+        WindowStartupLocation="CenterScreen"
+        Background="#1a1a2e">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <Style x:Key="ToolBtn" TargetType="Button">
+            <Setter Property="Margin"   Value="4,2"/>
+            <Setter Property="Padding"  Value="12,6"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor"   Value="Hand"/>
+        </Style>
+        <Style x:Key="TexBtn" TargetType="Button">
+            <Setter Property="Margin"   Value="4,2"/>
+            <Setter Property="Padding"  Value="9,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor"   Value="Hand"/>
+        </Style>
+        <Style x:Key="ApplyBtn" TargetType="Button" BasedOn="{StaticResource TexBtn}">
+            <Setter Property="Background"  Value="#1a4a1a"/>
+            <Setter Property="Foreground"  Value="#90ee90"/>
+            <Setter Property="BorderBrush" Value="#2a8a2a"/>
+        </Style>
+        <Style x:Key="CancelBtn" TargetType="Button" BasedOn="{StaticResource TexBtn}">
+            <Setter Property="Background"  Value="#4a1a1a"/>
+            <Setter Property="Foreground"  Value="#ff9090"/>
+            <Setter Property="BorderBrush" Value="#8a2a2a"/>
+        </Style>
+    </Window.Resources>
+
+    <Window.InputBindings>
+        <KeyBinding Key="Z" Modifiers="Ctrl"       Command="{Binding UndoCommand}"/>
+        <KeyBinding Key="Y" Modifiers="Ctrl"       Command="{Binding RedoCommand}"/>
+        <KeyBinding Key="Z" Modifiers="Ctrl+Shift" Command="{Binding RedoCommand}"/>
+    </Window.InputBindings>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>     <!-- 0: viewports        -->
+            <RowDefinition Height="Auto"/>  <!-- 1: status bar       -->
+            <RowDefinition Height="Auto"/>  <!-- 2: main toolbar     -->
+            <RowDefinition Height="Auto"/>  <!-- 3: texture panel    -->
+        </Grid.RowDefinitions>
+
+        <!-- ═══ Row 0 — viewports ════════════════════════════════════════ -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="{Binding SplitterColumnWidth}"/>
+                <ColumnDefinition Width="{Binding RightColumnWidth}"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 3-D Model Viewport -->
+            <Border Grid.Column="0"
+                    BorderBrush="{Binding ViewportBorderBrush}"
+                    BorderThickness="2" CornerRadius="4" Margin="4,4,2,4">
+                <Grid>
+                    <helix:HelixViewport3D x:Name="Viewport3D"
+                                          Background="{Binding Viewport3DBackground}"
+                                          ShowCoordinateSystem="{Binding Show3DCoordinateSystem}"
+                                          ShowViewCube="{Binding Show3DViewCube}"
+                                          MouseDown="Viewport3D_MouseDown"
+                                          PreviewMouseRightButtonDown="Viewport3D_PreviewRightClick">
+                        <helix:HelixViewport3D.Camera>
+                            <PerspectiveCamera x:Name="MainCamera3D"
+                                               Position="3,3,3"
+                                               LookDirection="-1,-1,-1"
+                                               UpDirection="0,1,0"
+                                               FieldOfView="45"
+                                               NearPlaneDistance="0.01"
+                                               FarPlaneDistance="5000"/>
+                        </helix:HelixViewport3D.Camera>
+                        <helix:DefaultLights/>
+                        <!-- Primary mesh -->
+                        <ModelVisual3D Content="{Binding MeshModel}"/>
+                        <!-- Selection highlight overlay (semi-transparent, z-offset) -->
+                        <ModelVisual3D Content="{Binding SelectionOverlayModel}"/>
+                    </helix:HelixViewport3D>
+
+                    <TextBlock Text="3D Model" Foreground="#7788aa" FontSize="11"
+                               Margin="8,6" VerticalAlignment="Top" HorizontalAlignment="Left"
+                               IsHitTestVisible="False"/>
+
+                    <!-- Preview badge -->
+                    <Border HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,6"
+                            Background="#cc7a00" CornerRadius="4" Padding="10,3"
+                            Visibility="{Binding PreviewBadgeVisible}">
+                        <TextBlock Text="{Binding PreviewLabelText}"
+                                   Foreground="White" FontWeight="Bold" FontSize="12"
+                                   IsHitTestVisible="False"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1"
+                          Width="{Binding SplitterColumnWidth}"
+                          HorizontalAlignment="Stretch"
+                          Background="#3d3d5c"
+                          Visibility="{Binding RightPanelVisible}"/>
+
+            <!-- 2-D Pattern Canvas -->
+            <Border Grid.Column="2"
+                    BorderBrush="#3d3d5c" BorderThickness="1"
+                    CornerRadius="4" Margin="2,4,4,4"
+                    Visibility="{Binding RightPanelVisible}">
+                <Grid>
+                    <ctrl:PatternCanvasControl
+                        x:Name="PatternCanvas"
+                        DataContext="{Binding}"/>
+
+                    <TextBlock Text="2D Pattern Layout"
+                               Foreground="#9999aa" FontSize="11" Margin="8,6"
+                               VerticalAlignment="Top" HorizontalAlignment="Left"
+                               IsHitTestVisible="False"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ═══ Row 1 — status bar ═══════════════════════════════════════ -->
+        <StatusBar Grid.Row="1" Background="#12122b" Padding="4,0">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusText}"
+                           Foreground="#a0c8ff" FontFamily="Consolas" FontSize="12"/>
+            </StatusBarItem>
+        </StatusBar>
+
+        <!-- ═══ Row 2 — main toolbar ══════════════════════════════════════ -->
+        <Border Grid.Row="2" Background="#ecf0f1" Padding="6,4">
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource ToolBtn}" Content="📂  Load Mesh"
+                        Command="{Binding LoadMeshCommand}"
+                        ToolTip="Load a Wavefront OBJ file"/>
+                <Separator/>
+                <Button Style="{StaticResource ToolBtn}" Content="⚙  Unfold"
+                        Command="{Binding UnfoldCommand}" IsEnabled="{Binding CanUnfold}"
+                        ToolTip="Open setup dialog and unfold the mesh"/>
+                <Separator/>
+                <Button Style="{StaticResource ToolBtn}" Content="💾  Export SVG"
+                        Command="{Binding ExportSvgCommand}" IsEnabled="{Binding CanExport}"
+                        ToolTip="Export the 2-D pattern as SVG"/>
+                <Separator/>
+                <Button Style="{StaticResource ToolBtn}" Content="📁  Save Project"
+                        Command="{Binding SaveProjectCommand}" IsEnabled="{Binding CanExport}"
+                        ToolTip="Save editing progress to a .pmc file"/>
+                <Button Style="{StaticResource ToolBtn}" Content="📂  Load Project"
+                        Command="{Binding LoadProjectCommand}"
+                        ToolTip="Load a previously saved .pmc project"/>
+                <Separator/>
+                <Button Style="{StaticResource ToolBtn}" Content="↩  Undo"
+                        Command="{Binding UndoCommand}"
+                        IsEnabled="{Binding CanUndo}"
+                        ToolTip="Undo last join/split/detach/attach  (Ctrl+Z)"/>
+                <Button Style="{StaticResource ToolBtn}" Content="↪  Redo"
+                        Command="{Binding RedoCommand}"
+                        IsEnabled="{Binding CanRedo}"
+                        ToolTip="Redo  (Ctrl+Y)"/>
+                <Separator/>
+                <Button Style="{StaticResource ToolBtn}" Content="⚙  Settings"
+                        Command="{Binding OpenSettingsCommand}"
+                        ToolTip="Open application settings (3D View / 2D View / Print)"/>
+                <Separator/>
+                <TextBlock Text="Right-click edge → Join/Split   LMB=rotate 3D   Scroll=zoom"
+                           VerticalAlignment="Center" Foreground="#888888" FontSize="11" Margin="8,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ Row 3 — texture panel ════════════════════════════════════ -->
+        <Border Grid.Row="3"
+                Background="#1e1e3c" BorderBrush="#3a3a6a" BorderThickness="0,1,0,0"
+                Padding="8,6"
+                Visibility="{Binding TexturePanelVisible}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Thumbnail with checkerboard -->
+                <Border Grid.Column="0"
+                        Width="48" Height="48"
+                        BorderBrush="#555577" BorderThickness="1" CornerRadius="3"
+                        Margin="0,0,10,0" Background="#111122" ClipToBounds="True">
+                    <Grid>
+                        <Rectangle>
+                            <Rectangle.Fill>
+                                <DrawingBrush TileMode="Tile" Viewport="0,0,8,8"
+                                              ViewportUnits="Absolute">
+                                    <DrawingBrush.Drawing>
+                                        <DrawingGroup>
+                                            <GeometryDrawing Brush="#555566" Geometry="M0,0 H8 V8 H0 Z"/>
+                                            <GeometryDrawing Brush="#333344"
+                                                Geometry="M0,0 H4 V4 H0 Z M4,4 H8 V8 H4 Z"/>
+                                        </DrawingGroup>
+                                    </DrawingBrush.Drawing>
+                                </DrawingBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <Image Source="{Binding ActiveTextureThumbnail}"
+                               Stretch="UniformToFill"
+                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <TextBlock Text="No texture" Foreground="#666688" FontSize="8"
+                                   TextWrapping="Wrap" TextAlignment="Center"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                                   Visibility="{Binding NoTexturePlaceholderVisible}"/>
+                    </Grid>
+                </Border>
+
+                <!-- Info + action buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel VerticalAlignment="Center" Margin="0,0,14,0">
+                        <TextBlock Text="TEXTURE" Foreground="#6666aa"
+                                   FontSize="9" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding TextureStatusText}"
+                                   Foreground="#c8d8ff" FontSize="12" FontWeight="SemiBold"
+                                   MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <Button Style="{StaticResource TexBtn}" Content="🎨  Load"
+                            Command="{Binding LoadTextureCommand}"
+                            ToolTip="Load a PNG/JPG texture"/>
+                    <Button Style="{StaticResource TexBtn}" Content="✖  Remove"
+                            Command="{Binding RemoveTextureCommand}"
+                            IsEnabled="{Binding CanRemoveTexture}"
+                            ToolTip="Preview without texture"/>
+                </StackPanel>
+
+                <!-- Preview confirm section -->
+                <Border Grid.Column="3"
+                        Background="#3a2800" BorderBrush="Orange" BorderThickness="1"
+                        CornerRadius="5" Padding="10,5" Margin="6,0"
+                        Visibility="{Binding PreviewBadgeVisible}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="⚡ PREVIEW"
+                                   Foreground="Orange" FontWeight="Bold" FontSize="11"
+                                   VerticalAlignment="Center" Margin="0,0,14,0"/>
+                        <Button Style="{StaticResource ApplyBtn}" Content="✔  Apply"
+                                Command="{Binding ApplyPreviewCommand}"/>
+                        <Button Style="{StaticResource CancelBtn}" Content="✖  Cancel"
+                                Command="{Binding CancelPreviewCommand}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

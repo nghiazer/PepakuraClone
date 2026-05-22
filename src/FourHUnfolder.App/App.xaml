@@ -1,0 +1,17 @@
+﻿<Application x:Class="FourHUnfolder.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Margin"   Value="4,2"/>
+            <Setter Property="Padding"  Value="14,6"/>
+            <Setter Property="MinWidth" Value="110"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor"   Value="Hand"/>
+        </Style>
+        <Style TargetType="Separator">
+            <Setter Property="Margin" Value="6,0"/>
+        </Style>
+    </Application.Resources>
+</Application>

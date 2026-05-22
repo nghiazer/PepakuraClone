@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>FourHUnfolder.Application</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FourHUnfolder.Domain\FourHUnfolder.Domain.csproj" />
+    <ProjectReference Include="..\FourHUnfolder.Geometry\FourHUnfolder.Geometry.csproj" />
+  </ItemGroup>
+</Project>

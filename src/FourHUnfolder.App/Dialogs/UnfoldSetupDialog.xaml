@@ -1,0 +1,154 @@
+﻿<Window x:Class="FourHUnfolder.App.Dialogs.UnfoldSetupDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Unfold Setup"
+        Width="440" Height="390"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#1e1e3c"
+        Foreground="White">
+
+    <Window.Resources>
+        <Style TargetType="Label">
+            <Setter Property="Foreground"  Value="#c8d8ff"/>
+            <Setter Property="FontSize"    Value="12"/>
+            <Setter Property="Margin"      Value="0,0,6,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background"  Value="#12122b"/>
+            <Setter Property="Foreground"  Value="White"/>
+            <Setter Property="BorderBrush" Value="#555577"/>
+            <Setter Property="Padding"     Value="4,2"/>
+            <Setter Property="Height"      Value="26"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background"  Value="#12122b"/>
+            <Setter Property="Foreground"  Value="White"/>
+            <Setter Property="BorderBrush" Value="#555577"/>
+            <Setter Property="Height"      Value="26"/>
+        </Style>
+        <Style TargetType="GroupBox">
+            <Setter Property="Foreground"  Value="#a0c0ff"/>
+            <Setter Property="BorderBrush" Value="#444466"/>
+            <Setter Property="Margin"      Value="0,0,0,10"/>
+            <Setter Property="Padding"     Value="10,8"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel Margin="14">
+
+        <!-- ═══ Model Dimensions ════════════════════════════════════ -->
+        <GroupBox DockPanel.Dock="Top" Header="Model Dimensions (Real World Scale)">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Bounding box info -->
+                <TextBlock Grid.Row="0" Grid.ColumnSpan="4"
+                           x:Name="BBoxLabel"
+                           Text="Bounding box: —"
+                           Foreground="#888899" FontSize="11" Margin="0,0,0,4"/>
+
+                <!-- Scale fields -->
+                <Label Grid.Row="2" Grid.Column="0" Content="Scale axis :"/>
+                <ComboBox Grid.Row="2" Grid.Column="1"
+                          x:Name="AxisCombo"
+                          SelectedIndex="3"
+                          Margin="0,0,6,0">
+                    <ComboBoxItem>Width  (X)</ComboBoxItem>
+                    <ComboBoxItem>Height (Y)</ComboBoxItem>
+                    <ComboBoxItem>Depth  (Z)</ComboBoxItem>
+                    <ComboBoxItem>Longest axis</ComboBoxItem>
+                </ComboBox>
+                <TextBox  Grid.Row="2" Grid.Column="2"
+                          x:Name="TargetSizeBox"
+                          Text="200" Margin="0,0,6,0"/>
+                <ComboBox Grid.Row="2" Grid.Column="3"
+                          x:Name="UnitCombo"
+                          SelectedIndex="0">
+                    <ComboBoxItem>mm</ComboBoxItem>
+                    <ComboBoxItem>cm</ComboBoxItem>
+                    <ComboBoxItem>inch</ComboBoxItem>
+                </ComboBox>
+            </Grid>
+        </GroupBox>
+
+        <!-- ═══ Paper Size ══════════════════════════════════════════ -->
+        <GroupBox DockPanel.Dock="Top" Header="Paper Size">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="60"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Preset -->
+                <Label Grid.Row="0" Grid.Column="0" Content="Preset :"/>
+                <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3"
+                          x:Name="PaperPresetCombo"
+                          SelectionChanged="PaperPreset_Changed">
+                    <ComboBoxItem>A4   (210 × 297 mm)</ComboBoxItem>
+                    <ComboBoxItem>A3   (297 × 420 mm)</ComboBoxItem>
+                    <ComboBoxItem>A2   (420 × 594 mm)</ComboBoxItem>
+                    <ComboBoxItem>A1   (594 × 841 mm)</ComboBoxItem>
+                    <ComboBoxItem>Letter (215.9 × 279.4 mm)</ComboBoxItem>
+                    <ComboBoxItem>Legal  (215.9 × 355.6 mm)</ComboBoxItem>
+                    <ComboBoxItem>Custom …</ComboBoxItem>
+                </ComboBox>
+
+                <!-- Custom size (only enabled for Custom) -->
+                <Label  Grid.Row="2" Grid.Column="0" Content="Size (mm) :"/>
+                <TextBox Grid.Row="2" Grid.Column="1"
+                         x:Name="CustomWidthBox" Text="210" Margin="0,0,6,0"
+                         IsEnabled="False"/>
+                <Label  Grid.Row="2" Grid.Column="2" Content="×"/>
+                <TextBox Grid.Row="2" Grid.Column="3"
+                         x:Name="CustomHeightBox" Text="297"
+                         IsEnabled="False"/>
+
+                <!-- Orientation -->
+                <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="4"
+                            Orientation="Horizontal">
+                    <RadioButton x:Name="PortraitRadio"
+                                 Content="Portrait"  IsChecked="True"
+                                 Foreground="White" Margin="0,0,18,0"/>
+                    <RadioButton x:Name="LandscapeRadio"
+                                 Content="Landscape"
+                                 Foreground="White"/>
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+
+        <!-- ═══ Buttons ══════════════════════════════════════════════ -->
+        <StackPanel DockPanel.Dock="Bottom"
+                    Orientation="Horizontal" HorizontalAlignment="Right"
+                    Margin="0,6,0,0">
+            <Button Content="  OK  "
+                    Width="80" Height="30" Margin="0,0,10,0"
+                    Background="#1a4060" Foreground="White" BorderBrush="#2a6090"
+                    Click="OK_Click"/>
+            <Button Content="Cancel"
+                    Width="80" Height="30"
+                    Background="#402020" Foreground="White" BorderBrush="#804040"
+                    Click="Cancel_Click"/>
+        </StackPanel>
+    </DockPanel>
+</Window>
