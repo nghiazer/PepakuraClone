@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -13,6 +14,8 @@ using PepakuraClone.Domain.Models;
 using PepakuraClone.Domain.Persistence;
 using PepakuraClone.Domain.Results;
 using PepakuraClone.Domain.Settings;
+// Alias to avoid ambiguity with PepakuraClone.Application namespace
+using WpfApp = System.Windows.Application;
 
 namespace PepakuraClone.App.ViewModels;
 
@@ -192,7 +195,7 @@ public partial class MainViewModel : ObservableObject
     {
         var dlg = new SettingsDialog(_settingsService)
         {
-            Owner = Application.Current.MainWindow
+            Owner = WpfApp.Current.MainWindow
         };
         dlg.ShowDialog();
     }
@@ -309,7 +312,7 @@ public partial class MainViewModel : ObservableObject
 
         var dlg = new UnfoldSetupDialog(UnfoldService.BoundingBoxInfo(_currentMesh))
         {
-            Owner = Application.Current.MainWindow
+            Owner = WpfApp.Current.MainWindow
         };
         if (dlg.ShowDialog() != true) return;
 
@@ -425,7 +428,7 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand] private void RemoveTexture()  { if (_currentMesh != null) EnterPreview(null); }
     [RelayCommand] private void ApplyPreview()   { if (!_previewActive) return; _committedTexturePath = _pendingTexturePath; CommitPreview(); }
-    [RelayCommand] private void CancelPreview()  { if (!_previewActive) return; CommitPreview(_revert: true); }
+    [RelayCommand] private void CancelPreview()  { if (!_previewActive) return; CommitPreview(revert: true); }
 
     // ══════════════════════════════════════════════════════════════════════════
     //  EDGE TOGGLE (join / split)  — called from PatternCanvasControl
@@ -637,9 +640,29 @@ public partial class MainViewModel : ObservableObject
         RebuildPieces(result, groups, _currentScaleMmPerUnit);
 
         if (preservePositions)
+        {
+            // Restore positions for pieces whose GroupId survived the re-run
+            int newPieceIdx = 0;
             foreach (var p in Pieces)
+            {
                 if (oldPos.TryGetValue(p.GroupId, out var pos))
-                { p.PositionX = pos.PositionX; p.PositionY = pos.PositionY; p.Rotation = pos.Rotation; }
+                {
+                    p.PositionX = pos.PositionX;
+                    p.PositionY = pos.PositionY;
+                    p.Rotation  = pos.Rotation;
+                }
+                else
+                {
+                    // TD-1: new piece spawned by a join/split — place it to the right of
+                    // the paper boundary so it's visible but not stacked on existing pieces.
+                    // Users can drag it to the desired position or use Auto-arrange.
+                    double paperRight = PaperSizeModel.WidthMm + 15;
+                    p.PositionX = paperRight + (newPieceIdx % 4) * 30;
+                    p.PositionY = 15        + (newPieceIdx / 4) * 30;
+                    newPieceIdx++;
+                }
+            }
+        }
 
         // Invalidate overlay cache — mesh topology changed
         InvalidateOverlayCache();
@@ -769,7 +792,6 @@ public partial class MainViewModel : ObservableObject
         StatusText = revert
             ? "Preview cancelled — texture unchanged."
             : $"Texture applied: {Path.GetFileName(path ?? "none")}";
-    }
     }
 
     private void CancelPreviewSilently() { _previewActive = false; _pendingTexturePath = null; }

@@ -1,6 +1,6 @@
 # PepakuraClone — Session Progress Log
 
-> **Last updated:** 2026-05-22 (session 3)  
+> **Last updated:** 2026-05-22 (session 4 — first real build)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -65,10 +65,27 @@ No circular dependencies. Domain has zero external dependencies.
 
 ---
 
+## Build & Test Status
+
+| Item | Result |
+|------|--------|
+| `dotnet build PepakuraClone.sln` | ✅ 0 errors, 0 warnings |
+| `dotnet test` | ✅ 16 / 16 passed |
+
+---
+
 ## All Bugs Fixed (cumulative)
 
 | Session | Severity | Bug | Fix |
-|---------|----------|-----|-----|
+|---------|----------|-----|-----|\
+| 4 (build) | Critical | `MainViewModel.cs` — extra spurious `}` after `CommitPreview` body, closing the class too early → `CS1022` | Removed extra brace |
+| 4 (build) | High | `App.xaml.cs` — `PepakuraClone.Application` namespace shadowed `System.Windows.Application` type → `CS0118` | Changed to `System.Windows.Application` explicit |
+| 4 (build) | High | `PatternCanvasControl.xaml.cs` — `file static class` with `operator *` → static classes can't hold user-defined operators → `CS0715` | Replaced with `private Point Sc(Point p)` instance method |
+| 4 (build) | High | `MainWindow.xaml.cs` — missing `using System.Windows.Media` → `VisualTreeHelper` / `PointHitTestParameters` not found | Added using |
+| 4 (build) | High | `MainViewModel.cs` — missing `using System.IO` explicit (WPF temp-csproj skips implicit usings) → `Path`/`File` not found | Added `using System.IO` |
+| 4 (build) | High | `MainViewModel.cs` — `Application.Current` resolved to `PepakuraClone.Application.Current` → `CS0234` | Added `using WpfApp = System.Windows.Application` alias |
+| 4 (build) | Medium | `CommitPreview(_revert: true)` used old parameter name `_revert` after rename to `revert` → `CS1739` | Updated call site |
+| 4 (build) | Medium | `PieceViewModel.FaceData` missing `EdgeIsBoundary` field used by `PatternCanvasControl` → `CS1061` | Added field + populated in `Create()` |
 | 1 | Critical | `PatternCanvasControl` drag broken — wrong mouse-capture element | `RootCanvas.CaptureMouse()` |
 | 1 | Critical | Project save wrote `ScaleMmPerUnit = 1.0` hardcoded | Use `_currentScaleMmPerUnit` |
 | 1 | High | Compile error — `MainWindow.xaml.cs` missing `using System.Linq` | Added import |
@@ -98,7 +115,7 @@ No circular dependencies. Domain has zero external dependencies.
 
 | ID | Was | Resolution |
 |----|-----|-----------|
-| TD-1 | Fold-cycle display inconsistency | **By design** — cycles are valid fold edges; BFS skips visited faces, but both faces are in the same piece so showing as Fold is correct |
+| TD-1 | No repositioning of new pieces after join/split → pieces stack at origin | New pieces spawned by a join/split are placed to the **right of the paper boundary** in a 4-column grid, so they're visible and drag-able; existing pieces keep their saved positions. (Fold-cycle display was confirmed by-design.) |
 | TD-7 | Triangle-grid visible on pieces; boundary edges indistinguishable from cut edges | Removed polygon stroke; boundary edges drawn as thin dark grey; `EdgeIsBoundary[]` propagated through `UnfoldedFace` from `UnfoldEngine` |
 | TD-8 | Texture not embedded in SVG | UV coords (`UVCoords[]`) added to `UnfoldedFace`; `SvgExporter` computes per-face affine transform, embeds texture as base-64 data URI with clip paths |
 | TD-9 | No undo/redo | `EditSnapshot` record (edge overrides + piece positions); `_undoStack`/`_redoStack`; `UndoCommand`/`RedoCommand`; `PushUndoState()` called in ToggleEdge, DetachFace, DetachPiece, AttachFaces; Ctrl+Z/Y keyboard shortcuts |
@@ -135,8 +152,7 @@ Tests/                  MstAlgorithmTests (6) UnfoldEngineTests (9)
 
 ## Recommended Next Steps
 
-1. **Install .NET 8 SDK** and verify `dotnet build` passes; run tests
-2. **Merge PR #1** on GitHub: <https://github.com/nghiazer/PepakuraClone/pull/1>
+1. **Merge PR #1** on GitHub: <https://github.com/nghiazer/PepakuraClone/pull/1>
 3. Add **PDF export** via `PdfSharp`
 4. Add **piece outline merging** (compute union polygon of face triangles) for cleaner visuals
 5. Performance: replace O(n²) overlap check with spatial grid for meshes > 2 000 faces

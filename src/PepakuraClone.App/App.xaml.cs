@@ -8,7 +8,7 @@ using System.Windows;
 
 namespace PepakuraClone.App;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
 

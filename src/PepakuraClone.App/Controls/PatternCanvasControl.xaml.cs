@@ -238,9 +238,7 @@ public partial class PatternCanvasControl : UserControl
                 Fill            = fill,
                 Stroke          = null,
                 StrokeThickness = 0,
-                Points          = new PointCollection([fd.V0 * _pxPerMm,
-                                                       fd.V1 * _pxPerMm,
-                                                       fd.V2 * _pxPerMm])
+                Points          = new PointCollection([Sc(fd.V0), Sc(fd.V1), Sc(fd.V2)])
             };
             poly.Tag = piece;
             container.Children.Add(poly);
@@ -263,7 +261,7 @@ public partial class PatternCanvasControl : UserControl
             }
 
             // Edges — skip mesh edges already drawn (TD-2 dedup)
-            Point[] verts = [fd.V0 * _pxPerMm, fd.V1 * _pxPerMm, fd.V2 * _pxPerMm];
+            Point[] verts = [Sc(fd.V0), Sc(fd.V1), Sc(fd.V2)];
             for (int i = 0; i < 3; i++)
             {
                 int meshEdgeId = fd.MeshEdgeIds[i];
@@ -305,7 +303,7 @@ public partial class PatternCanvasControl : UserControl
                     Fill            = tabFill,
                     Stroke          = Brushes.DarkGreen,
                     StrokeThickness = 0.5,
-                    Points          = new PointCollection(tab.Points.Select(p => p * _pxPerMm))
+                    Points          = new PointCollection(tab.Points.Select(Sc))
                 };
                 container.Children.Add(tabPoly);
             }
@@ -500,10 +498,7 @@ public partial class PatternCanvasControl : UserControl
         try { return new DoubleCollection(dashStr.Split(',').Select(double.Parse)); }
         catch { return new DoubleCollection([4, 2]); }
     }
-}
 
-file static class PointExtensions
-{
-    public static System.Windows.Point operator *(System.Windows.Point p, double s) =>
-        new(p.X * s, p.Y * s);
+    // Scale a WPF Point by the current pixels-per-mm factor
+    private Point Sc(Point p) => new(p.X * _pxPerMm, p.Y * _pxPerMm);
 }
