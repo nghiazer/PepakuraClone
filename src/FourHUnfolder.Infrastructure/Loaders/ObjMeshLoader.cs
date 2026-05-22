@@ -74,13 +74,15 @@ public class ObjMeshLoader : IMeshLoader
         // Each token may be: "v", "v/vt", "v/vt/vn", "v//vn"
         var posIdx = tokens.Select(t => SlotIndex(t, 0)).ToArray();
         var uvIdx  = tokens.Select(t => SlotIndex(t, 1)).ToArray();
+        int vCount = mesh.Vertices.Count;
 
-        // Fan triangulation
+        // Fan triangulation — skip faces with out-of-bounds vertex references
         for (int i = 1; i < posIdx.Length - 1; i++)
         {
-            mesh.AddFace(
-                posIdx[0], posIdx[i], posIdx[i + 1],
-                uvIdx[0],  uvIdx[i],  uvIdx[i + 1]);
+            int a = posIdx[0], b = posIdx[i], c = posIdx[i + 1];
+            if (a < 0 || a >= vCount || b < 0 || b >= vCount || c < 0 || c >= vCount)
+                continue;
+            mesh.AddFace(a, b, c, uvIdx[0], uvIdx[i], uvIdx[i + 1]);
         }
     }
 

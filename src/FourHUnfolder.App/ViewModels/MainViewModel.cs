@@ -766,7 +766,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             foreach (var tab in piece.GlueTabs)
             {
                 var pts = tab.Points;
-                tabs.Add(new GlueTab(0, 0,
+                tabs.Add(new GlueTab(tab.FaceId, tab.LocalEdgeIdx,
                     ToCanvas(pts[0].X, pts[0].Y),
                     ToCanvas(pts[1].X, pts[1].Y),
                     ToCanvas(pts[2].X, pts[2].Y),
@@ -847,7 +847,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void PushDragUndo(IReadOnlyDictionary<int, (double X, double Y, double Rot)> preDrag)
     {
         _undoStack.Push(new EditSnapshot(
-            _edgeOverrides.ToDictionary(k => k.Key, v => v.Value),
+            new Dictionary<int, EdgeType>(_edgeOverrides),
             preDrag));
         _redoStack.Clear();
         NotifyUndoRedo();

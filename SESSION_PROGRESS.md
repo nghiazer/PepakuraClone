@@ -1,6 +1,6 @@
 ﻿# 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-22 (session 11 — app icon + 2D texture mapping)  
+> **Last updated:** 2026-05-22 (session 12 — 2D texture fix + review R bugs)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -78,8 +78,10 @@ No circular dependencies. Domain has zero external dependencies.
 | SVG export applies canvas layout (position + rotation) | ✅ Fixed session 8 |
 | Multi-page layout persisted in .pmc | ✅ Fixed session 8 |
 | `dotnet test` | ✅ 29 / 29 passed (16 original + 13 new) |
-| 2D texture mapping (affine UV per triangle) | ✅ Session 11 |
+| 2D texture mapping (affine UV per triangle, DPI-agnostic) | ✅ Session 12 fix |
 | App icon embedded in exe | ✅ Session 11 |
+| Rotate/flip pieces are now undoable (Ctrl+Z) | ✅ Session 12 |
+| OBJ invalid vertex refs silently skipped (no crash) | ✅ Session 12 |
 
 ---
 
@@ -161,11 +163,22 @@ No circular dependencies. Domain has zero external dependencies.
 | ~~TD-N4~~ | ~~Medium~~ | ~~Fixed s10~~ | ~~No tests for OverlapDetector, GlueTabGenerator, ObjMeshLoader~~ | Fixed: `GeometryAlgorithmTests.cs` added (13 new tests: 4 OverlapDetector, 5 GlueTabGenerator, 4 ObjMeshLoader) |
 | ~~TD-N6~~ | ~~Low~~ | ~~Fixed s10~~ | ~~Undo/redo didn't cover piece drag moves~~ | Fixed: `_preDragPositions` captured on `MouseDown`; `PushDragUndo()` called on `MouseUp` if piece actually moved |
 | ~~Unrotated bbox~~ | ~~Low~~ | ~~Fixed s10~~ | ~~`EnsurePageForPosition` used unrotated bbox~~ | Fixed: all 4 rotated bbox corners computed in `Canvas_MouseUp`; max(x',y') used for page expansion check |
-| TD-S7-3 | **Medium** | `MainViewModel.cs RebuildPieces()`, `PatternCanvasControl.cs OnPiecesChanged()` | Each `Pieces.Add()` triggers `Dispatcher.Invoke(RebuildAll)` synchronously → N+1 full canvas rebuilds per unfold. For a 50-piece mesh = 51 rebuilds. | Use `ObservableRangeCollection` or suppress collection events during batch add; fire one rebuild at the end |
-| TD-S7-4 | **Medium** | `MainViewModel.cs:164-168` | `OnSettingsChanged` rebuilds the expensive 3D WPF model on ANY settings change (2D, Print, General), not just 3D-view changes | Guard: only call `BuildWpfModel` when `View3D` properties actually changed |
-| TD-S7-5 | **Medium** | `MainViewModel.cs:696` | `RunAutoArrange` always sets `PagesWide = 1` — auto-arrange never uses horizontal pages. Wide models produce very tall single-column layouts. | Support 2-D strip packing; allow pieces to fill right before going down |
-| TD-S7-6 | **Low** | `MainViewModel.cs:140` | `_settingsService.SettingsChanged` subscription never unsubscribed from `MainViewModel` | Add unsubscription on dispose or rely on documented singleton lifetime |
-| TD-S7-7 | **Low** | `PatternCanvasControl.xaml.cs DrawPageAt()` | Method signature uses namespace-qualified `Domain.Settings.AppSettings.View2DSettings?` parameter | Add `using` import; use short type name |
+| ~~TD-S7-3~~ | ~~Medium~~ | ~~Fixed s9~~ | ~~(duplicate — already fixed above)~~ | — |
+| ~~TD-S7-4~~ | ~~Medium~~ | ~~Fixed s9~~ | ~~(duplicate — already fixed above)~~ | — |
+| ~~TD-S7-5~~ | ~~Medium~~ | ~~Fixed s9~~ | ~~(duplicate — already fixed above)~~ | — |
+| ~~TD-S7-6~~ | ~~Low~~ | ~~Fixed s10~~ | ~~(duplicate — already fixed above)~~ | — |
+| ~~TD-S7-7~~ | ~~Low~~ | ~~Fixed s12~~ | ~~`DrawPageAt()` used namespace-qualified parameter type~~ | Fixed: added `using FourHUnfolder.Domain.Settings;`, shortened to `AppSettings.View2DSettings?` |
+
+### Session 12 fixes (review R-series)
+
+| ID | Was | Resolution |
+|----|-----|-----------|
+| BUG-R1 | `TabData` lost `FaceId`/`LocalEdgeIdx`; `BuildExportLayout` created tabs with (0,0) | Added fields to `TabData`; populated from `GlueTab` in `PieceViewModel.Create()`; used in `BuildExportLayout` |
+| BUG-R2 | Rotate ±90° and Flip-H not undoable | `RotateSelected`/`FlipH_Click` now capture pre-state and call `PushDragUndo` |
+| BUG-R3 | `ObjMeshLoader` passed -1 or out-of-bounds vertex index to `AddFace` → crash | Added bounds check in `ParseFace`; invalid triangles silently skipped |
+| BUG-TEX | `BuildTextureBrush` used `Stretch=None` + pixel Viewport → DPI mismatch for 72-DPI images | Changed to `Viewport=(0,0,1,1)` + `Stretch=Fill`; source now UV [0,1] (DPI-agnostic) |
+| TD-R2 | `_edgeOverrides.ToDictionary(k=>k.Key, v=>v.Value)` confusing idiom | Replaced with `new Dictionary<int,EdgeType>(_edgeOverrides)` |
+| TD-S7-7 | `DrawPageAt` parameter used fully-qualified `Domain.Settings.AppSettings.View2DSettings?` | Added `using FourHUnfolder.Domain.Settings;`; shortened to `AppSettings.View2DSettings?` |
 
 ### Remaining tech debt (intentionally deferred)
 

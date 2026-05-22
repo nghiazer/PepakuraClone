@@ -63,9 +63,15 @@ public partial class PieceViewModel : ObservableObject
     /// One glue tab trapezoid in piece-local mm coordinates.
     public sealed class TabData
     {
-        public Point[] Points { get; }
-        public TabData(Point p0, Point p1, Point p2, Point p3) =>
-            Points = [p0, p1, p2, p3];
+        public int     FaceId       { get; }
+        public int     LocalEdgeIdx { get; }
+        public Point[] Points       { get; }
+        public TabData(int faceId, int localEdgeIdx, Point p0, Point p1, Point p2, Point p3)
+        {
+            FaceId       = faceId;
+            LocalEdgeIdx = localEdgeIdx;
+            Points       = [p0, p1, p2, p3];
+        }
     }
 
     // ── factory ──────────────────────────────────────────────────────────────
@@ -104,6 +110,7 @@ public partial class PieceViewModel : ObservableObject
         var tabDatas = unfoldResult.GlueTabs
             .Where(t => faceSet.Contains(t.FaceId))
             .Select(t => new TabData(
+                t.FaceId, t.LocalEdgeIdx,
                 ToLocal(t.P0), ToLocal(t.P1),
                 ToLocal(t.P2), ToLocal(t.P3)))
             .ToArray();
