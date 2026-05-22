@@ -1,6 +1,6 @@
 ﻿# 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-22 (session 4 — first real build)  
+> **Last updated:** 2026-05-22 (session 5 — rename + full code review)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -100,6 +100,19 @@ No circular dependencies. Domain has zero external dependencies.
 
 ---
 
+## Open Bugs (pending fix)
+
+> Discovered in session 5 full code review. Ordered by severity.
+
+| ID | Severity | File | Description | Impact |
+|----|----------|------|-------------|--------|
+| BUG-1 | **High** | `GlueTabGenerator.cs:25` | Generator skips `EdgeIsFold[i]` but does **not** skip `EdgeIsBoundary[i]` → boundary edges on open meshes get unwanted glue tabs | Extra tabs appear on flat/open meshes; visually cluttered SVG; misleading assembly instructions |
+| BUG-2 | **Medium** | `UnfoldEngine.cs:176-182` | `FindSharedLocalIndices` fills at most `n` entries; if a face shares < 2 vertices with the edge (malformed topology), `r[1]` stays `0` → `la = 3 − ls[0] − 0` → wrong apex index | Silent wrong geometry on malformed OBJ; no crash but incorrect unfold output |
+| BUG-3 | **Low** | `ObjMeshLoader.cs:130-131` | `F()` calls `float.Parse()` with no guard; any malformed float token in OBJ (e.g. `"1.0e"`, `"-"`) throws unhandled `FormatException` | Hard crash on load; error message unhelpful ("Input string was not in correct format") |
+| BUG-4 | **Low** | `ProjectSerializer.cs:75` | `Resolve()` returns `null` when both relative and absolute paths don't resolve; `MainViewModel` silently skips loading mesh/texture with no user message | User loads project, canvas stays empty, no explanation |
+
+---
+
 ## Tech Debt Status
 
 ### Resolved this session
@@ -110,6 +123,19 @@ No circular dependencies. Domain has zero external dependencies.
 | TD-4 | Memory leak in PatternCanvasControl (dangling PropertyChanged handlers) | Explicit subscription dict + unsubscribe on rebuild |
 | TD-5 | Selection overlay rebuilt on every click | Frozen `Model3DGroup` cache per group ID |
 | TD-6 | SVG fold/cut lines drawn twice per shared edge | Canonical-key HashSet dedup |
+
+### New tech debt discovered in session 5 (pending)
+
+| ID | Priority | File(s) | Description |
+|----|----------|---------|-------------|
+| TD-N1 | **High** | `EdgeMarker.cs`, `UnfoldService.cs:46-52` | `EdgeMarker.Mark()` is dead code — `UnfoldService.Unfold()` re-implements identical edge-stamping logic inline and never calls `EdgeMarker`. Maintenance risk: edge logic must be updated in two places. |
+| TD-N2 | **High** | `GlueTabGenerator.cs:13-14` | Tab dimensions `TabDepth = 4f` (mm) and `TabInset = 0.15f` are hardcoded constants, not exposed in Settings. Users cannot adjust tab size for different paper thicknesses. |
+| TD-N3 | **Medium** | `ProjectSerializer.cs`, `ProjectState.cs:9` | `ProjectState.Version = 2` is set but never read or checked during `Load()`. No migration path exists if the file format changes in future releases. |
+| TD-N4 | **Medium** | `tests/FourHUnfolder.Tests/` | Significant test coverage gaps: no tests for `OverlapDetector`, `GlueTabGenerator` (including boundary-edge bug BUG-1), `SvgExporter.AffineTransform`, or `ObjMeshLoader` error paths. |
+| TD-N5 | **Medium** | `OverlapDetector.cs:71` | SAT epsilon `1e-5f` is applied to projections along the **unnormalized** edge perpendicular axis. Effective geometric tolerance scales with edge length, making it inconsistent across differently-sized triangles. |
+| TD-N6 | **Low** | `MainViewModel.cs` | Undo/redo (`_undoStack`/`_redoStack`) captures edge overrides and piece positions at the moment of edge operation, but piece drag moves between edge operations are not individually undoable. |
+| TD-N7 | **Low** | `MainViewModel.cs:36` | `_currentScaleMmPerUnit` is a loose `double` field with no encapsulation. If `Unfold()` is called again with a new scale, old piece coordinates in PieceViewModel remain stale until rebuilt. |
+| TD-N8 | **Low** | Geometry algorithms | Epsilon values scattered (`1e-4f` in GlueTabGenerator, `1e-5f` in OverlapDetector, `1e-6f` in UnfoldEngine×2, `1e-10f` in DualGraphBuilder) with no centralized policy or documentation of their purpose. |
 
 ### All resolved ✓
 
@@ -152,9 +178,21 @@ Tests/                  MstAlgorithmTests (6) UnfoldEngineTests (9)
 
 ## Recommended Next Steps
 
-1. **Merge PR #1** on GitHub: <https://github.com/nghiazer/4H-Unfolder/pull/1>
-3. Add **PDF export** via `PdfSharp`
-4. Add **piece outline merging** (compute union polygon of face triangles) for cleaner visuals
-5. Performance: replace O(n²) overlap check with spatial grid for meshes > 2 000 faces
-6. **Undo scope** — currently covers edge ops only; extend to cover piece position moves
-7. Add **auto-unfolding layout heuristic** (strip-packing aware placement)
+### Immediate (bugs)
+1. Fix **BUG-1** — add `EdgeIsBoundary[i]` guard in `GlueTabGenerator` (1-line fix)
+2. Fix **BUG-2** — add guard in `FindSharedLocalIndices` to throw or return invalid sentinel when `n < 2`
+3. Fix **BUG-3** — wrap `float.Parse()` in `ObjMeshLoader.F()` to return `0f` and log warning
+4. Fix **BUG-4** — show user-facing warning in `MainViewModel` when mesh/texture not found on project load
+
+### Near-term (high tech debt)
+5. Remove **TD-N1** dead `EdgeMarker` class or wire it up properly in `UnfoldService`
+6. Move **TD-N2** tab dimensions into `AppSettings.PrintSettings` and expose in Settings dialog
+
+### Future
+7. **Merge PR #1**: <https://github.com/nghiazer/4H-Unfolder/pull/1>
+8. Add **PDF export** via `PdfSharp`
+9. Add **piece outline merging** (compute union polygon of face triangles) for cleaner visuals
+10. Performance: replace O(n²) overlap check with spatial grid for meshes > 2 000 faces
+11. **TD-N3** — add version check + migration in `ProjectSerializer.Load()`
+12. **TD-N4** — expand test suite to cover geometry edge cases
+13. Add **auto-unfolding layout heuristic** (strip-packing aware placement)
