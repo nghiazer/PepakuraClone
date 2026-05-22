@@ -32,10 +32,28 @@ public partial class PatternCanvasControl : UserControl
     // TD-4 fix: explicit subscription tracking to prevent memory leaks
     private readonly Dictionary<PieceViewModel, PropertyChangedEventHandler> _pieceHandlers = new();
 
-    // drag state
-    private PieceViewModel? _dragging;
+    // edge-edit mode
+    private bool  _editModeActive;
+    private Line? _hoveredEdgeLine;   // currently highlighted edge (restored on leave / mode-off)
+
+    // rotate-by-point mode
+    private bool   _rotatePtActive;
+    private int    _rotatePtPhase;    // 0=pick pivot, 1=pick handle, 2=live rotation
+    private readonly List<(Ellipse Dot, PieceViewModel Piece, double Lx, double Ly)> _vtxDots = new();
+    private Ellipse?        _pivotDot;
+    private Ellipse?        _handleDot;
+    private PieceViewModel? _rotPiece;
+    private double          _pivotCx, _pivotCy;      // pivot canvas-pixel position (fixed during drag)
+    private double          _pivotLx, _pivotLy;      // pivot piece-local mm coords
+    private double          _handleAngle0;            // initial pivot→handle angle when drag started
+    private double          _pieceRotation0;          // piece.Rotation when drag started
+
+    // drag state — multi-piece
+    private PieceViewModel? _dragging;       // "leader" piece (the one that was clicked)
     private Point           _dragOriginMouse;
     private double          _dragOriginX, _dragOriginY;
+    // origin positions of ALL selected pieces captured at drag start
+    private Dictionary<int, (double X, double Y)>? _multiDragOrigins;
 
     // TD-N6: pre-drag snapshot for undo support (captured on MouseDown)
     private Dictionary<int, (double X, double Y, double Rot)>? _preDragPositions;
@@ -60,7 +78,7 @@ public partial class PatternCanvasControl : UserControl
         if (_vm == null) return;
 
         _pxPerMm = _vm.PixelsPerMm;
-        ZoomSlider.Value = _pxPerMm;
+        if (ZoomLabel != null) ZoomLabel.Text = $"{_pxPerMm:F1} px/mm";
 
         _vm.Pieces.CollectionChanged += OnPiecesChanged;
         _vm.PropertyChanged          += OnVmPropertyChanged;
@@ -100,6 +118,10 @@ public partial class PatternCanvasControl : UserControl
     // ── full rebuild ─────────────────────────────────────────────────────────
     private void RebuildAll()
     {
+        _hoveredEdgeLine = null;   // old Line elements are discarded; no restore needed
+        ClearVtxDots();            // dots replaced below; unsubscribes handlers first
+        ResetRotatePhase();        // cancel any in-progress rotation on rebuild
+
         // TD-4 fix: unsubscribe all tracked PropertyChanged handlers before clearing
         foreach (var (piece, handler) in _pieceHandlers)
             piece.PropertyChanged -= handler;
@@ -118,6 +140,8 @@ public partial class PatternCanvasControl : UserControl
 
         SyncAllTransforms();
         UpdateCanvasSize();
+
+        if (_rotatePtActive) ShowVtxDots();
     }
 
     // ── paper background ─────────────────────────────────────────────────────
@@ -234,7 +258,7 @@ public partial class PatternCanvasControl : UserControl
                 case nameof(PieceViewModel.PositionX):
                 case nameof(PieceViewModel.PositionY):
                 case nameof(PieceViewModel.Rotation):
-                    Dispatcher.Invoke(() => SyncTransform(piece));
+                    Dispatcher.Invoke(() => { SyncTransform(piece); if (_rotatePtActive) UpdateVtxDotPositions(piece); });
                     break;
             }
         };
@@ -343,7 +367,13 @@ public partial class PatternCanvasControl : UserControl
                     Tag             = (PieceId: piece.GroupId, FaceId: fd.FaceId,
                                        EdgeIdx: i, MeshEdgeId: meshEdgeId)
                 };
-                if (!isBoundary) line.MouseRightButtonDown += Edge_RightClick;
+                if (!isBoundary)
+                {
+                    line.MouseRightButtonDown += Edge_RightClick;
+                    line.MouseEnter           += Edge_MouseEnter;
+                    line.MouseLeave           += Edge_MouseLeave;
+                    line.MouseLeftButtonDown  += Edge_LeftClick;
+                }
                 container.Children.Add(line);
             }
         }
@@ -401,13 +431,25 @@ public partial class PatternCanvasControl : UserControl
     // ── drag handling ────────────────────────────────────────────────────────
     private void Piece_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (_editModeActive || _rotatePtActive) return;   // special modes suppress drag
         if (sender is not Canvas c || c.Tag is not PieceViewModel piece) return;
+
+        bool multiMod = (Keyboard.Modifiers & (ModifierKeys.Shift | ModifierKeys.Control)) != 0;
 
         if (_vm != null)
         {
-            foreach (var p in _vm.Pieces)
-                p.IsSelected = (p == piece);
-            _vm.SelectPiece2D(piece.GroupId);
+            if (multiMod)
+            {
+                // Toggle this piece in multi-selection
+                piece.IsSelected = !piece.IsSelected;
+                if (piece.IsSelected) _vm.SelectPiece2D(piece.GroupId);
+            }
+            else if (!piece.IsSelected)
+            {
+                // Single-select only if not already selected (allows dragging a group)
+                foreach (var p in _vm.Pieces) p.IsSelected = (p == piece);
+                _vm.SelectPiece2D(piece.GroupId);
+            }
         }
 
         _dragging        = piece;
@@ -415,7 +457,11 @@ public partial class PatternCanvasControl : UserControl
         _dragOriginX     = piece.PositionX;
         _dragOriginY     = piece.PositionY;
 
-        // Capture pre-drag layout snapshot for undo (TD-N6)
+        // Snapshot origins of every selected piece for multi-drag
+        _multiDragOrigins = _vm?.Pieces
+            .Where(p => p.IsSelected)
+            .ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY));
+
         _preDragPositions = _vm?.Pieces
             .ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
 
@@ -423,8 +469,49 @@ public partial class PatternCanvasControl : UserControl
         e.Handled = true;
     }
 
+    private void Canvas_LeftDown(object sender, MouseButtonEventArgs e)
+    {
+        // Phase 2: canvas click confirms rotation
+        if (_rotatePtPhase == 2)
+        {
+            if (_preDragPositions != null && _vm != null)
+                _vm.PushDragUndo(_preDragPositions);
+            ResetRotatePhase();
+            e.Handled = true;
+            return;
+        }
+        // Click on empty canvas (not on a piece or dot): deselect all
+        if (_vm != null && !_editModeActive && !_rotatePtActive)
+        {
+            foreach (var p in _vm.Pieces) p.IsSelected = false;
+            _vm.ClearSelection();
+        }
+    }
+
     private void Canvas_MouseMove(object sender, MouseEventArgs e)
     {
+        // ── rotate-by-point live drag (phase 2) ───────────────────────────────
+        if (_rotatePtPhase == 2 && _rotPiece != null)
+        {
+            var mouse = e.GetPosition(RootCanvas);
+            double angle    = Math.Atan2(mouse.Y - _pivotCy, mouse.X - _pivotCx);
+            double angleDelta = angle - _handleAngle0;
+            while (angleDelta >  Math.PI) angleDelta -= 2 * Math.PI;
+            while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
+
+            double newRotDeg = _pieceRotation0 + angleDelta * 180.0 / Math.PI;
+            double cosR = Math.Cos(newRotDeg * Math.PI / 180.0);
+            double sinR = Math.Sin(newRotDeg * Math.PI / 180.0);
+
+            // Keep pivot canvas-pixel position fixed
+            _rotPiece.PositionX = (_pivotCx - PaperMarginPx) / _pxPerMm - (_pivotLx * cosR - _pivotLy * sinR);
+            _rotPiece.PositionY = (_pivotCy - PaperMarginPx) / _pxPerMm - (_pivotLx * sinR + _pivotLy * cosR);
+            _rotPiece.Rotation  = (newRotDeg % 360 + 360) % 360;
+            SyncTransform(_rotPiece);
+            UpdateVtxDotPositions(_rotPiece);
+            return;
+        }
+
         if (_dragging == null) return;
         var pos   = e.GetPosition(RootCanvas);
         var delta = pos - _dragOriginMouse;
@@ -441,9 +528,31 @@ public partial class PatternCanvasControl : UserControl
             newY = Math.Round(newY / g) * g;
         }
 
-        _dragging.PositionX = newX;
-        _dragging.PositionY = newY;
-        SyncTransform(_dragging);
+        // Move all selected pieces by same delta
+        if (_multiDragOrigins != null && _vm != null)
+        {
+            foreach (var p in _vm.Pieces.Where(p => p.IsSelected))
+            {
+                if (!_multiDragOrigins.TryGetValue(p.GroupId, out var origin)) continue;
+                double px = origin.X + delta.X / _pxPerMm;
+                double py = origin.Y + delta.Y / _pxPerMm;
+                if ((_vm.SnapToGrid) && s2d != null && s2d.GridSizeMm > 0)
+                {
+                    double g = s2d.GridSizeMm;
+                    px = Math.Round(px / g) * g;
+                    py = Math.Round(py / g) * g;
+                }
+                p.PositionX = px;
+                p.PositionY = py;
+                SyncTransform(p);
+            }
+        }
+        else
+        {
+            _dragging.PositionX = newX;
+            _dragging.PositionY = newY;
+            SyncTransform(_dragging);
+        }
     }
 
     private void Canvas_MouseUp(object sender, MouseEventArgs e)
@@ -456,34 +565,32 @@ public partial class PatternCanvasControl : UserControl
 
         if (moved && _vm != null)
         {
-            // Push pre-drag snapshot for undo (TD-N6)
             if (_preDragPositions != null)
                 _vm.PushDragUndo(_preDragPositions);
 
-            // Expand page grid based on rotated bounding box (fix for unrotated bbox edge case)
-            if (_dragging.Faces.Length > 0)
+            // Expand page for each moved piece's rotated bounding box
+            var movedPieces = _multiDragOrigins != null
+                ? _vm.Pieces.Where(p => p.IsSelected && _multiDragOrigins.ContainsKey(p.GroupId))
+                : (IEnumerable<PieceViewModel>)[_dragging];
+
+            foreach (var piece in movedPieces.Where(p => p.Faces.Length > 0))
             {
-                var allX = _dragging.Faces.SelectMany(f => new[] { f.V0.X, f.V1.X, f.V2.X });
-                var allY = _dragging.Faces.SelectMany(f => new[] { f.V0.Y, f.V1.Y, f.V2.Y });
+                var allX = piece.Faces.SelectMany(f => new[] { f.V0.X, f.V1.X, f.V2.X });
+                var allY = piece.Faces.SelectMany(f => new[] { f.V0.Y, f.V1.Y, f.V2.Y });
                 double lMinX = allX.Min(), lMaxX = allX.Max();
                 double lMinY = allY.Min(), lMaxY = allY.Max();
-
-                double rotRad = _dragging.Rotation * Math.PI / 180.0;
+                double rotRad = piece.Rotation * Math.PI / 180.0;
                 double cosR = Math.Cos(rotRad), sinR = Math.Sin(rotRad);
-
-                // Check all four rotated bounding box corners
                 double[] cxs = { lMinX, lMaxX, lMinX, lMaxX };
                 double[] cys = { lMinY, lMinY, lMaxY, lMaxY };
-                double maxRx = cxs.Zip(cys, (x, y) => x * cosR - y * sinR).Max();
-                double maxRy = cxs.Zip(cys, (x, y) => x * sinR + y * cosR).Max();
-
                 _vm.EnsurePageForPosition(
-                    _dragging.PositionX + maxRx,
-                    _dragging.PositionY + maxRy);
+                    piece.PositionX + cxs.Zip(cys, (x, y) => x * cosR - y * sinR).Max(),
+                    piece.PositionY + cxs.Zip(cys, (x, y) => x * sinR + y * cosR).Max());
             }
         }
 
         _preDragPositions = null;
+        _multiDragOrigins = null;
         _dragging = null;
     }
 
@@ -518,23 +625,17 @@ public partial class PatternCanvasControl : UserControl
     private void RotateCW_Click (object s, RoutedEventArgs e) => RotateSelected(+90);
     private void RotateCCW_Click(object s, RoutedEventArgs e) => RotateSelected(-90);
 
-    private void FlipH_Click(object s, RoutedEventArgs e)
-    {
-        var piece = _vm?.Pieces.FirstOrDefault(p => p.IsSelected);
-        if (piece == null || _vm == null) return;
-        var pre = _vm.Pieces.ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
-        piece.Rotation = (180 - piece.Rotation + 360) % 360;
-        SyncTransform(piece);
-        _vm.PushDragUndo(pre);
-    }
-
     private void RotateSelected(double delta)
     {
-        var piece = _vm?.Pieces.FirstOrDefault(p => p.IsSelected);
-        if (piece == null || _vm == null) return;
+        if (_vm == null) return;
+        var selected = _vm.Pieces.Where(p => p.IsSelected).ToList();
+        if (selected.Count == 0) return;
         var pre = _vm.Pieces.ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
-        piece.Rotation = (piece.Rotation + delta + 360) % 360;
-        SyncTransform(piece);
+        foreach (var piece in selected)
+        {
+            piece.Rotation = (piece.Rotation + delta + 360) % 360;
+            SyncTransform(piece);
+        }
         _vm.PushDragUndo(pre);
     }
 
@@ -549,14 +650,252 @@ public partial class PatternCanvasControl : UserControl
     private void SnapToggle_Click(object s, RoutedEventArgs e) =>
         _vm?.ToggleSnapCommand.Execute(null);
 
-    // ── zoom ─────────────────────────────────────────────────────────────────
-    private void Zoom_Changed(object s, RoutedPropertyChangedEventArgs<double> e)
+    // ── zoom (mouse wheel, centered on cursor) ───────────────────────────────
+    private void Scroller_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        _pxPerMm = e.NewValue;
-        // ZoomLabel is null when Slider fires ValueChanged during InitializeComponent XAML parsing
-        if (ZoomLabel == null) return;
-        ZoomLabel.Text = $"{_pxPerMm:F1} px/mm";
-        if (_vm != null) { _vm.PixelsPerMm = _pxPerMm; RebuildAll(); }
+        e.Handled = true;   // prevent default scroll
+        double factor  = e.Delta > 0 ? 1.15 : 1.0 / 1.15;
+        double newPx   = Math.Max(0.5, Math.Min(12.0, _pxPerMm * factor));
+        if (Math.Abs(newPx - _pxPerMm) < 0.005) return;
+
+        // Canvas position under mouse (in logical pixels, before zoom change)
+        var mouseInViewport = e.GetPosition(Scroller);
+        double worldX = (Scroller.HorizontalOffset + mouseInViewport.X - PaperMarginPx) / _pxPerMm;
+        double worldY = (Scroller.VerticalOffset   + mouseInViewport.Y - PaperMarginPx) / _pxPerMm;
+
+        _pxPerMm = newPx;
+        if (_vm != null) _vm.PixelsPerMm = newPx;
+        if (ZoomLabel != null) ZoomLabel.Text = $"{_pxPerMm:F1} px/mm";
+        RebuildAll();
+
+        // Re-centre view on the same world point
+        double newCx = worldX * newPx + PaperMarginPx;
+        double newCy = worldY * newPx + PaperMarginPx;
+        Scroller.ScrollToHorizontalOffset(Math.Max(0, newCx - mouseInViewport.X));
+        Scroller.ScrollToVerticalOffset  (Math.Max(0, newCy - mouseInViewport.Y));
+    }
+
+    // ── rotate-by-point mode ──────────────────────────────────────────────────
+
+    private void RotatePoint_Click(object s, RoutedEventArgs e)
+    {
+        _rotatePtActive = RotatePointBtn.IsChecked == true;
+        // Mutual exclusion with edge-edit mode
+        if (_rotatePtActive && _editModeActive)
+        {
+            _editModeActive = false;
+            EditEdgesBtn.IsChecked = false;
+            if (_hoveredEdgeLine != null) { RestoreEdgeStyle(_hoveredEdgeLine); _hoveredEdgeLine = null; }
+        }
+        RootCanvas.Cursor = _rotatePtActive ? Cursors.Arrow : null;
+        if (_rotatePtActive)
+            ShowVtxDots();
+        else
+        {
+            ClearVtxDots();
+            ResetRotatePhase();
+        }
+    }
+
+    // ── vertex dot helpers ────────────────────────────────────────────────────
+
+    private void ShowVtxDots()
+    {
+        ClearVtxDots();
+        foreach (var piece in _vm?.Pieces ?? [])
+        {
+            var seen = new HashSet<(int, int)>();
+            foreach (var fd in piece.Faces)
+                foreach (var v in new[] { fd.V0, fd.V1, fd.V2 })
+                {
+                    var key = ((int)Math.Round(v.X * 100), (int)Math.Round(v.Y * 100));
+                    if (!seen.Add(key)) continue;
+                    AddVtxDot(piece, v.X, v.Y);
+                }
+        }
+    }
+
+    private void AddVtxDot(PieceViewModel piece, double lx, double ly)
+    {
+        const double R = 5.0;
+        var dot = new Ellipse
+        {
+            Width  = R * 2, Height = R * 2,
+            Fill   = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255)),
+            Stroke = new SolidColorBrush(Color.FromArgb(160, 180, 180, 180)),
+            StrokeThickness  = 1,
+            Cursor           = Cursors.Hand,
+            IsHitTestVisible = true
+        };
+        dot.MouseEnter           += VtxDot_MouseEnter;
+        dot.MouseLeave           += VtxDot_MouseLeave;
+        dot.MouseLeftButtonDown  += VtxDot_Click;
+
+        PositionVtxDot(dot, piece, lx, ly, R);
+        Panel.SetZIndex(dot, 100);
+        RootCanvas.Children.Add(dot);
+        _vtxDots.Add((dot, piece, lx, ly));
+    }
+
+    private void PositionVtxDot(Ellipse dot, PieceViewModel piece, double lx, double ly, double r)
+    {
+        var (cx, cy) = VtxCanvasPx(piece, lx, ly);
+        Canvas.SetLeft(dot, cx - r);
+        Canvas.SetTop (dot, cy - r);
+    }
+
+    private (double cx, double cy) VtxCanvasPx(PieceViewModel piece, double lx, double ly)
+    {
+        double rotRad = piece.Rotation * Math.PI / 180.0;
+        double cosR = Math.Cos(rotRad), sinR = Math.Sin(rotRad);
+        double lpx = lx * _pxPerMm, lpy = ly * _pxPerMm;
+        double cx = lpx * cosR - lpy * sinR + piece.PositionX * _pxPerMm + PaperMarginPx;
+        double cy = lpx * sinR + lpy * cosR + piece.PositionY * _pxPerMm + PaperMarginPx;
+        return (cx, cy);
+    }
+
+    private void UpdateVtxDotPositions(PieceViewModel piece)
+    {
+        const double R = 5.0;
+        foreach (var (dot, p, lx, ly) in _vtxDots)
+            if (p == piece) PositionVtxDot(dot, piece, lx, ly, R);
+    }
+
+    private void ClearVtxDots()
+    {
+        foreach (var (dot, _, _, _) in _vtxDots)
+        {
+            dot.MouseEnter          -= VtxDot_MouseEnter;
+            dot.MouseLeave          -= VtxDot_MouseLeave;
+            dot.MouseLeftButtonDown -= VtxDot_Click;
+            RootCanvas.Children.Remove(dot);
+        }
+        _vtxDots.Clear();
+        _pivotDot = _handleDot = null;
+    }
+
+    private void VtxDot_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is not Ellipse dot || dot == _pivotDot || dot == _handleDot) return;
+        dot.Fill = new SolidColorBrush(Color.FromArgb(255, 255, 220, 80));
+    }
+
+    private void VtxDot_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (sender is not Ellipse dot || dot == _pivotDot || dot == _handleDot) return;
+        dot.Fill = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255));
+    }
+
+    private static readonly Brush _dotRedBrush = new SolidColorBrush(Color.FromRgb(220, 50, 50));
+
+    private void VtxDot_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Ellipse dot) return;
+        e.Handled = true;
+
+        var entry = _vtxDots.FirstOrDefault(t => t.Dot == dot);
+        if (entry == default) return;
+        var (_, piece, lx, ly) = entry;
+
+        if (_rotatePtPhase == 0)
+        {
+            // Select pivot
+            _pivotDot = dot;
+            dot.Fill  = _dotRedBrush;
+            _rotPiece = piece;
+            _pivotLx  = lx;  _pivotLy = ly;
+            (_pivotCx, _pivotCy) = VtxCanvasPx(piece, lx, ly);
+            _rotatePtPhase = 1;
+        }
+        else if (_rotatePtPhase == 1 && dot != _pivotDot)
+        {
+            // Select handle → start live rotation
+            _handleDot = dot;
+            dot.Fill   = _dotRedBrush;
+            var (hcx, hcy) = VtxCanvasPx(piece, lx, ly);
+            _handleAngle0   = Math.Atan2(hcy - _pivotCy, hcx - _pivotCx);
+            _pieceRotation0 = piece.Rotation;
+            // Capture pre-rotate state for undo
+            _preDragPositions = _vm?.Pieces
+                .ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
+            _rotatePtPhase = 2;
+        }
+    }
+
+    private void ResetRotatePhase()
+    {
+        const byte A = 210;
+        var whiteFill = new SolidColorBrush(Color.FromArgb(A, 255, 255, 255));
+        if (_pivotDot  != null) { _pivotDot.Fill  = whiteFill; _pivotDot  = null; }
+        if (_handleDot != null) { _handleDot.Fill = whiteFill; _handleDot = null; }
+        _rotatePtPhase    = 0;
+        _rotPiece         = null;
+        _preDragPositions = null;
+    }
+
+    // ── edge-edit mode ────────────────────────────────────────────────────────
+
+    private void EditEdges_Click(object s, RoutedEventArgs e)
+    {
+        // Mutual exclusion with rotate-point mode
+        if (EditEdgesBtn.IsChecked == true && _rotatePtActive)
+        {
+            _rotatePtActive = false;
+            RotatePointBtn.IsChecked = false;
+            ClearVtxDots();
+            ResetRotatePhase();
+            RootCanvas.Cursor = null;
+        }
+        _editModeActive = EditEdgesBtn.IsChecked == true;
+        RootCanvas.Cursor = _editModeActive ? Cursors.Arrow : null;
+
+        // Restore any currently-highlighted edge when turning mode off
+        if (!_editModeActive && _hoveredEdgeLine != null)
+        {
+            RestoreEdgeStyle(_hoveredEdgeLine);
+            _hoveredEdgeLine = null;
+        }
+    }
+
+    private void Edge_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (!_editModeActive || sender is not Line line) return;
+        _hoveredEdgeLine = line;
+        var hoverBrush = HexBrush(_vm?.View2DSettings?.EdgeHoverColor, "#ffff9900");
+        line.Stroke          = hoverBrush;
+        line.StrokeThickness = 3.5;
+        line.StrokeDashArray = null;
+    }
+
+    private void Edge_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (sender is not Line line) return;
+        if (line == _hoveredEdgeLine) _hoveredEdgeLine = null;
+        RestoreEdgeStyle(line);
+    }
+
+    private void Edge_LeftClick(object sender, MouseButtonEventArgs e)
+    {
+        if (!_editModeActive || sender is not Line line) return;
+        if (line.Tag is not (int _, int _, int _, int meshEdgeId)) return;
+        if (_vm == null) return;
+        e.Handled = true;          // prevent piece drag
+        _hoveredEdgeLine = null;
+        _vm.ToggleEdge(meshEdgeId);
+        // RebuildAll() is called by ToggleEdge → pieces/edges replaced, hover state reset
+    }
+
+    /// Restores a Line's stroke to its original fold/cut style from current settings.
+    private void RestoreEdgeStyle(Line line)
+    {
+        if (line.Tag is not (int _, int _, int _, int meshEdgeId)) return;
+        var s2d    = _vm?.View2DSettings;
+        bool isFold = _vm?.IsEdgeFold(meshEdgeId) ?? false;
+        line.Stroke          = isFold
+            ? HexBrush(s2d?.FoldLineColor, "#4169e1")
+            : HexBrush(s2d?.CutLineColor,  "#ff0000");
+        line.StrokeThickness = isFold ? (s2d?.FoldLineWidth ?? 0.8) : (s2d?.CutLineWidth ?? 1.0);
+        line.StrokeDashArray = isFold ? ParseDash(s2d?.FoldLineDash ?? "4,2") : null;
     }
 
     // ── affine UV texture mapping ─────────────────────────────────────────────

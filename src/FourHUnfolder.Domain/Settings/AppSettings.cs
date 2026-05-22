@@ -84,6 +84,9 @@ public sealed class AppSettings
 
         // Default zoom when canvas first opens
         public double DefaultPixelsPerMm { get; set; } = 3.0;
+
+        // Highlight color for hoverable edges in Edge-Edit mode (ARGB hex)
+        public string EdgeHoverColor    { get; set; } = "#ffff9900";
     }
 
     // ── Print / SVG Export ────────────────────────────────────────────────────

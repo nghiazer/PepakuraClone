@@ -81,6 +81,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     // paper canvas
     [ObservableProperty] private PaperSizeModel _paperSizeModel = PaperSizeModel.A4;
+
+    /// Standard paper sizes shown in the toolbar ComboBox.
+    public static IReadOnlyList<PaperSizeModel> AvailablePaperSizes { get; } =
+        PaperSizeModel.Presets
+            .SelectMany(p => new[] { p.Portrait(), p.Landscape() })
+            .ToArray();
     [ObservableProperty] private double          _pixelsPerMm    = 3.0;
     [ObservableProperty] private int             _pagesWide      = 1;
     [ObservableProperty] private int             _pagesTall      = 1;
@@ -508,6 +514,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
         StatusText = piece != null
             ? $"Selected face {faceId}  ·  piece #{piece.GroupId}  ·  {piece.Faces.Length} triangles"
             : $"Selected face {faceId}  (no 2D piece — unfold first)";
+    }
+
+    /// Called from 2D canvas when empty space is clicked (deselect all).
+    public void ClearSelection()
+    {
+        SelectionOverlayModel = null;
+        _cachedOverlayGroupId = null;
+        _cachedOverlayModel   = null;
+        SelectedFaceId        = -1;
     }
 
     /// Called from 2D canvas when a piece is clicked.

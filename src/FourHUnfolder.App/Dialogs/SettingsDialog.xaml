@@ -515,6 +515,22 @@
                     </StackPanel>
                 </GroupBox>
 
+                <GroupBox Header="Edge Edit Mode">
+                    <Grid Margin="0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="28"/>
+                            <ColumnDefinition Width="110"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Edge hover highlight color" Style="{StaticResource FieldLabel}"/>
+                        <Rectangle Grid.Column="1" Width="22" Height="22"
+                                   Fill="{Binding EdgeHoverColor, Converter={StaticResource HexBrush}}"
+                                   Stroke="#666" StrokeThickness="1" Margin="0,0,4,0"/>
+                        <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                 Text="{Binding EdgeHoverColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                    </Grid>
+                </GroupBox>
+
                 <GroupBox Header="Piece Layout">
                     <StackPanel>
                         <Grid Margin="0,4">

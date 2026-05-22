@@ -44,10 +44,9 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>     <!-- 0: viewports        -->
-            <RowDefinition Height="Auto"/>  <!-- 1: status bar       -->
-            <RowDefinition Height="Auto"/>  <!-- 2: main toolbar     -->
-            <RowDefinition Height="Auto"/>  <!-- 3: texture panel    -->
+            <RowDefinition Height="*"/>     <!-- 0: viewports    -->
+            <RowDefinition Height="Auto"/>  <!-- 1: status bar   -->
+            <RowDefinition Height="Auto"/>  <!-- 2: main toolbar -->
         </Grid.RowDefinitions>
 
         <!-- ═══ Row 0 — viewports ════════════════════════════════════════ -->
@@ -131,6 +130,10 @@
                 <TextBlock Text="{Binding StatusText}"
                            Foreground="#a0c8ff" FontFamily="Consolas" FontSize="12"/>
             </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="Right-click edge → Join/Split  ·  LMB=rotate 3D  ·  Scroll=zoom 2D  ·  Shift/Ctrl+click=multi-select"
+                           Foreground="#666688" FontSize="11"/>
+            </StatusBarItem>
         </StatusBar>
 
         <!-- ═══ Row 2 — main toolbar ══════════════════════════════════════ -->
@@ -167,89 +170,20 @@
                 <Button Style="{StaticResource ToolBtn}" Content="⚙  Settings"
                         Command="{Binding OpenSettingsCommand}"
                         ToolTip="Open application settings (3D View / 2D View / Print)"/>
+                <Button Style="{StaticResource ToolBtn}" Content="🎨  Texture"
+                        Click="TextureButton_Click"
+                        Visibility="{Binding TexturePanelVisible}"
+                        ToolTip="Open texture manager"/>
                 <Separator/>
-                <TextBlock Text="Right-click edge → Join/Split   LMB=rotate 3D   Scroll=zoom"
-                           VerticalAlignment="Center" Foreground="#888888" FontSize="11" Margin="8,0"/>
+                <TextBlock Text="📄" VerticalAlignment="Center" FontSize="13" Margin="4,0,4,0"/>
+                <ComboBox x:Name="PaperSizeCombo"
+                          ItemsSource="{Binding AvailablePaperSizes}"
+                          SelectedItem="{Binding PaperSizeModel, Mode=TwoWay}"
+                          DisplayMemberPath="Name"
+                          Width="110" VerticalAlignment="Center" Margin="0,0,4,0"
+                          ToolTip="Change paper size (takes effect immediately)"/>
             </StackPanel>
         </Border>
 
-        <!-- ═══ Row 3 — texture panel ════════════════════════════════════ -->
-        <Border Grid.Row="3"
-                Background="#1e1e3c" BorderBrush="#3a3a6a" BorderThickness="0,1,0,0"
-                Padding="8,6"
-                Visibility="{Binding TexturePanelVisible}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Thumbnail with checkerboard -->
-                <Border Grid.Column="0"
-                        Width="48" Height="48"
-                        BorderBrush="#555577" BorderThickness="1" CornerRadius="3"
-                        Margin="0,0,10,0" Background="#111122" ClipToBounds="True">
-                    <Grid>
-                        <Rectangle>
-                            <Rectangle.Fill>
-                                <DrawingBrush TileMode="Tile" Viewport="0,0,8,8"
-                                              ViewportUnits="Absolute">
-                                    <DrawingBrush.Drawing>
-                                        <DrawingGroup>
-                                            <GeometryDrawing Brush="#555566" Geometry="M0,0 H8 V8 H0 Z"/>
-                                            <GeometryDrawing Brush="#333344"
-                                                Geometry="M0,0 H4 V4 H0 Z M4,4 H8 V8 H4 Z"/>
-                                        </DrawingGroup>
-                                    </DrawingBrush.Drawing>
-                                </DrawingBrush>
-                            </Rectangle.Fill>
-                        </Rectangle>
-                        <Image Source="{Binding ActiveTextureThumbnail}"
-                               Stretch="UniformToFill"
-                               RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <TextBlock Text="No texture" Foreground="#666688" FontSize="8"
-                                   TextWrapping="Wrap" TextAlignment="Center"
-                                   VerticalAlignment="Center" HorizontalAlignment="Center"
-                                   Visibility="{Binding NoTexturePlaceholderVisible}"/>
-                    </Grid>
-                </Border>
-
-                <!-- Info + action buttons -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <StackPanel VerticalAlignment="Center" Margin="0,0,14,0">
-                        <TextBlock Text="TEXTURE" Foreground="#6666aa"
-                                   FontSize="9" FontWeight="Bold"/>
-                        <TextBlock Text="{Binding TextureStatusText}"
-                                   Foreground="#c8d8ff" FontSize="12" FontWeight="SemiBold"
-                                   MaxWidth="200" TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
-                    <Button Style="{StaticResource TexBtn}" Content="🎨  Load"
-                            Command="{Binding LoadTextureCommand}"
-                            ToolTip="Load a PNG/JPG texture"/>
-                    <Button Style="{StaticResource TexBtn}" Content="✖  Remove"
-                            Command="{Binding RemoveTextureCommand}"
-                            IsEnabled="{Binding CanRemoveTexture}"
-                            ToolTip="Preview without texture"/>
-                </StackPanel>
-
-                <!-- Preview confirm section -->
-                <Border Grid.Column="3"
-                        Background="#3a2800" BorderBrush="Orange" BorderThickness="1"
-                        CornerRadius="5" Padding="10,5" Margin="6,0"
-                        Visibility="{Binding PreviewBadgeVisible}">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="⚡ PREVIEW"
-                                   Foreground="Orange" FontWeight="Bold" FontSize="11"
-                                   VerticalAlignment="Center" Margin="0,0,14,0"/>
-                        <Button Style="{StaticResource ApplyBtn}" Content="✔  Apply"
-                                Command="{Binding ApplyPreviewCommand}"/>
-                        <Button Style="{StaticResource CancelBtn}" Content="✖  Cancel"
-                                Command="{Binding CancelPreviewCommand}"/>
-                    </StackPanel>
-                </Border>
-            </Grid>
-        </Border>
     </Grid>
 </Window>
