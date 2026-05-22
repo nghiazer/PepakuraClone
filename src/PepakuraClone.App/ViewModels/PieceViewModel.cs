@@ -40,15 +40,18 @@ public partial class PieceViewModel : ObservableObject
         public Point   V0          { get; }
         public Point   V1          { get; }
         public Point   V2          { get; }
-        public bool[]  EdgeIsFold  { get; }   // [e01, e12, e20]
+        public bool[]  EdgeIsFold     { get; }   // [e01, e12, e20]
+        public bool[]  EdgeIsBoundary { get; }   // true = outer mesh boundary, no adjacent face
 
         public FaceData(int faceId, int[] meshEdgeIds,
-                        Point v0, Point v1, Point v2, bool[] edgeIsFold)
+                        Point v0, Point v1, Point v2,
+                        bool[] edgeIsFold, bool[]? edgeIsBoundary = null)
         {
-            FaceId      = faceId;
-            MeshEdgeIds = meshEdgeIds;
-            V0          = v0; V1 = v1; V2 = v2;
-            EdgeIsFold  = edgeIsFold;
+            FaceId         = faceId;
+            MeshEdgeIds    = meshEdgeIds;
+            V0             = v0; V1 = v1; V2 = v2;
+            EdgeIsFold     = edgeIsFold;
+            EdgeIsBoundary = edgeIsBoundary ?? [false, false, false];
         }
     }
 
@@ -88,7 +91,7 @@ public partial class PieceViewModel : ObservableObject
                 uf.FaceId,
                 mf.EdgeIds.ToArray(),
                 ToLocal(uf.V0), ToLocal(uf.V1), ToLocal(uf.V2),
-                uf.EdgeIsFold);
+                uf.EdgeIsFold, uf.EdgeIsBoundary);
         }).ToArray();
 
         // Glue tabs belonging to faces in this piece

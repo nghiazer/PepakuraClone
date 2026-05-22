@@ -35,6 +35,12 @@
         </Style>
     </Window.Resources>
 
+    <Window.InputBindings>
+        <KeyBinding Key="Z" Modifiers="Ctrl"       Command="{Binding UndoCommand}"/>
+        <KeyBinding Key="Y" Modifiers="Ctrl"       Command="{Binding RedoCommand}"/>
+        <KeyBinding Key="Z" Modifiers="Ctrl+Shift" Command="{Binding RedoCommand}"/>
+    </Window.InputBindings>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>     <!-- 0: viewports        -->
@@ -147,6 +153,15 @@
                 <Button Style="{StaticResource ToolBtn}" Content="📂  Load Project"
                         Command="{Binding LoadProjectCommand}"
                         ToolTip="Load a previously saved .pmc project"/>
+                <Separator/>
+                <Button Style="{StaticResource ToolBtn}" Content="↩  Undo"
+                        Command="{Binding UndoCommand}"
+                        IsEnabled="{Binding CanUndo}"
+                        ToolTip="Undo last join/split/detach/attach  (Ctrl+Z)"/>
+                <Button Style="{StaticResource ToolBtn}" Content="↪  Redo"
+                        Command="{Binding RedoCommand}"
+                        IsEnabled="{Binding CanRedo}"
+                        ToolTip="Redo  (Ctrl+Y)"/>
                 <Separator/>
                 <Button Style="{StaticResource ToolBtn}" Content="⚙  Settings"
                         Command="{Binding OpenSettingsCommand}"

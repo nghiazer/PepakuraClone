@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <!-- HelixToolkit.WPF 2.25.0 targets .NETFramework but works via compat mode on net8.0-windows -->
+    <NoWarn>NU1701</NoWarn>
     <RootNamespace>PepakuraClone.App</RootNamespace>
     <AssemblyName>PepakuraClone</AssemblyName>
 

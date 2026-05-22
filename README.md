@@ -20,14 +20,14 @@ Load a 3-D OBJ mesh, unfold it into a printable 2-D pattern, customise the layou
 
 ```bash
 dotnet restore
-dotnet build
+dotnet build          # 0 errors, 0 warnings
 dotnet run --project src/PepakuraClone.App
 ```
 
 ### Tests
 
 ```bash
-dotnet test tests/PepakuraClone.Tests
+dotnet test tests/PepakuraClone.Tests   # 16 / 16 pass
 ```
 
 ---
@@ -61,6 +61,15 @@ dotnet test tests/PepakuraClone.Tests
 | Toolbar: ⊞ Grid | Toggle grid show/hide immediately (no rebuild) |
 | Toolbar: ⊟ Snap | Toggle snap-to-grid when dragging |
 | Toolbar: Auto-arrange | Row-packs all pieces onto the paper using the configured gap |
+| Toolbar: ↩ Undo / ↪ Redo | Undo/redo edge changes (Ctrl+Z / Ctrl+Y) |
+
+Edge type visual key in the 2-D canvas:
+
+| Style | Meaning |
+|-------|---------|
+| Dashed blue | Fold edge — paper bends here |
+| Solid red | Cut edge — separate pieces, needs glue tab |
+| Thin dark grey | Boundary edge — outer mesh boundary |
 
 ### 3-D face selection + Detach / Attach
 | Action | Result |
@@ -84,7 +93,8 @@ Four sections, all persisted to `%AppData%\PepakuraClone\settings.json`:
 - On load: re-runs unfold with saved overrides, then restores piece layout
 
 ### Export SVG
-- Produces a standalone `.svg` with face fills, fold lines (dashed), cut lines, glue tabs
+- Produces a standalone `.svg` with face fills, fold/cut/boundary lines, glue tabs
+- **UV-mapped texture** embedded as a base-64 data URI with per-face affine transform (when the mesh has UV data and a texture is loaded)
 - All settings driven by the **Print** settings section
 
 ---
@@ -147,11 +157,11 @@ Domain ─→ Geometry ─→ Application ─→ Infrastructure ─→ App
 | 2 | `DualGraphBuilder` | One node per face; edges weighted by dihedral angle; degenerate-face guard |
 | 3 | `KruskalMstBuilder` | Kruskal + path-compressed Union-Find → MST |
 | 4 | `EdgeMarker` | MST → Fold; non-MST interior → Cut; boundary → Boundary |
-| 5 | `UnfoldEngine` | BFS flattening; circle-circle apex; supports disconnected pieces |
+| 5 | `UnfoldEngine` | BFS flattening; circle-circle apex; populates `EdgeIsBoundary` and `UVCoords` per face |
 | 6 | `OverlapDetector` | AABB pre-check + SAT; sets `UnfoldResult.HasOverlaps` |
 | 7 | `GlueTabGenerator` | Trapezoidal tabs on cut edges (tagged with FaceId) |
 | 8 | `PieceComputer` | Union-Find on fold graph → connected components |
-| 9 | `SvgExporter` | Edge-deduplicated SVG driven by `AppSettings.PrintSettings` |
+| 9 | `SvgExporter` | Edge-deduplicated SVG; boundary/fold/cut styling; UV-mapped texture via affine transform |
 
 ---
 
@@ -201,6 +211,5 @@ Expected after **Unfold** (A4, 200 mm longest axis):
 ## Known limitations
 
 - Overlap detection is O(n²) after AABB rejection — still slow on meshes > ~2 000 faces
-- 2-D pieces rendered as individual triangles (no merged outlines)
-- Texture is not embedded in SVG export
-- No undo/redo stack for join/split/detach operations
+- Undo/redo only covers edge changes (join/split/detach) — piece positions are partially restored on undo but may drift for complex sequences
+- SVG texture embedding requires a loaded texture and UV-mapped mesh; plain OBJ without `vt` coordinates exports without texture

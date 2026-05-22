@@ -219,26 +219,26 @@ public partial class PatternCanvasControl : UserControl
         var selFill  = new SolidColorBrush(Color.FromArgb(180, 160, 210, 255));
         var fill     = piece.IsSelected ? selFill : faceFill;
 
-        var foldBrush = HexBrush(s2d?.FoldLineColor, "#4169e1");
-        var cutBrush  = HexBrush(s2d?.CutLineColor,  "#ff0000");
-        double foldW  = s2d?.FoldLineWidth ?? 0.8;
-        double cutW   = s2d?.CutLineWidth  ?? 1.0;
-        var foldDash  = ParseDash(s2d?.FoldLineDash ?? "4,2");
+        var foldBrush  = HexBrush(s2d?.FoldLineColor, "#4169e1");
+        var cutBrush   = HexBrush(s2d?.CutLineColor,  "#ff0000");
+        // Boundary edges: outer mesh edges drawn as thin dark border (no tab, no fold)
+        var boundBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80));
+        double foldW   = s2d?.FoldLineWidth ?? 0.8;
+        double cutW    = s2d?.CutLineWidth  ?? 1.0;
+        var foldDash   = ParseDash(s2d?.FoldLineDash ?? "4,2");
 
         // TD-2 fix: deduplicate shared edges using mesh edge IDs
         var drawnEdgeIds = new HashSet<int>();
 
         foreach (var fd in piece.Faces)
         {
-            // Face polygon
+            // TD-7: remove triangle border stroke — fold/cut/boundary lines handle all outlines
             var poly = new Polygon
             {
                 Fill            = fill,
-                Stroke          = new SolidColorBrush(Color.FromRgb(160, 160, 160)),
-                StrokeThickness = 0.3,
-                Points          = new PointCollection([fd.V0 * _pxPerMm,
-                                                       fd.V1 * _pxPerMm,
-                                                       fd.V2 * _pxPerMm])
+                Stroke          = null,
+                StrokeThickness = 0,
+                Points          = new PointCollection([Sc(fd.V0), Sc(fd.V1), Sc(fd.V2)])
             };
             poly.Tag = piece;
             container.Children.Add(poly);
@@ -261,25 +261,32 @@ public partial class PatternCanvasControl : UserControl
             }
 
             // Edges — skip mesh edges already drawn (TD-2 dedup)
-            Point[] verts = [fd.V0 * _pxPerMm, fd.V1 * _pxPerMm, fd.V2 * _pxPerMm];
+            Point[] verts = [Sc(fd.V0), Sc(fd.V1), Sc(fd.V2)];
             for (int i = 0; i < 3; i++)
             {
                 int meshEdgeId = fd.MeshEdgeIds[i];
-                if (!drawnEdgeIds.Add(meshEdgeId)) continue; // already drawn in this piece
+                if (!drawnEdgeIds.Add(meshEdgeId)) continue;
 
-                bool isFold = fd.EdgeIsFold[i];
+                bool isFold     = fd.EdgeIsFold[i];
+                bool isBoundary = fd.EdgeIsBoundary[i];
+
+                // TD-7: boundary edges get a distinct thin dark style
+                Brush  stroke    = isBoundary ? boundBrush : (isFold ? foldBrush : cutBrush);
+                double thickness = isBoundary ? 0.6 : (isFold ? foldW : cutW);
+                var    dash      = (!isBoundary && isFold) ? foldDash : null;
+
                 var line = new Line
                 {
                     X1 = verts[i].X,           Y1 = verts[i].Y,
                     X2 = verts[(i + 1) % 3].X, Y2 = verts[(i + 1) % 3].Y,
-                    Stroke          = isFold ? foldBrush : cutBrush,
-                    StrokeThickness = isFold ? foldW : cutW,
-                    StrokeDashArray = isFold ? foldDash : null,
-                    Cursor          = Cursors.Hand,
+                    Stroke          = stroke,
+                    StrokeThickness = thickness,
+                    StrokeDashArray = dash,
+                    Cursor          = isBoundary ? Cursors.Arrow : Cursors.Hand,
                     Tag             = (PieceId: piece.GroupId, FaceId: fd.FaceId,
                                        EdgeIdx: i, MeshEdgeId: meshEdgeId)
                 };
-                line.MouseRightButtonDown += Edge_RightClick;
+                if (!isBoundary) line.MouseRightButtonDown += Edge_RightClick;
                 container.Children.Add(line);
             }
         }
@@ -296,7 +303,7 @@ public partial class PatternCanvasControl : UserControl
                     Fill            = tabFill,
                     Stroke          = Brushes.DarkGreen,
                     StrokeThickness = 0.5,
-                    Points          = new PointCollection(tab.Points.Select(p => p * _pxPerMm))
+                    Points          = new PointCollection(tab.Points.Select(Sc))
                 };
                 container.Children.Add(tabPoly);
             }
@@ -491,10 +498,7 @@ public partial class PatternCanvasControl : UserControl
         try { return new DoubleCollection(dashStr.Split(',').Select(double.Parse)); }
         catch { return new DoubleCollection([4, 2]); }
     }
-}
 
-file static class PointExtensions
-{
-    public static System.Windows.Point operator *(System.Windows.Point p, double s) =>
-        new(p.X * s, p.Y * s);
+    // Scale a WPF Point by the current pixels-per-mm factor
+    private Point Sc(Point p) => new(p.X * _pxPerMm, p.Y * _pxPerMm);
 }

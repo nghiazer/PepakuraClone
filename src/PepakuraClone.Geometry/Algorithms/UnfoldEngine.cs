@@ -53,13 +53,29 @@ public class UnfoldEngine
         }
 
         var unfoldedFaces = new List<UnfoldedFace>(placed.Count);
+        bool hasUV = mesh.HasUVs;
+
         foreach (var (faceId, pos) in placed)
         {
-            var face      = mesh.Faces[faceId];
-            var edgeIsFold = face.EdgeIds
-                .Select(eid => mesh.Edges[eid].Type == EdgeType.Fold)
-                .ToArray();
-            unfoldedFaces.Add(new UnfoldedFace(faceId, pos[0], pos[1], pos[2], edgeIsFold));
+            var face         = mesh.Faces[faceId];
+            var edgeIsFold   = face.EdgeIds.Select(eid => mesh.Edges[eid].Type == EdgeType.Fold).ToArray();
+            var edgeIsBound  = face.EdgeIds.Select(eid => mesh.Edges[eid].Type == EdgeType.Boundary).ToArray();
+
+            // Copy UV coordinates for this face (null when mesh has no UVs)
+            Vector2[]? uvCoords = null;
+            if (hasUV && mesh.FaceUVs.Count > faceId)
+            {
+                var (ua, ub, uc) = mesh.FaceUVs[faceId];
+                uvCoords = [
+                    ua >= 0 && ua < mesh.UVs.Count ? mesh.UVs[ua] : Vector2.Zero,
+                    ub >= 0 && ub < mesh.UVs.Count ? mesh.UVs[ub] : Vector2.Zero,
+                    uc >= 0 && uc < mesh.UVs.Count ? mesh.UVs[uc] : Vector2.Zero
+                ];
+            }
+
+            unfoldedFaces.Add(new UnfoldedFace(
+                faceId, pos[0], pos[1], pos[2],
+                edgeIsFold, edgeIsBound, uvCoords));
         }
 
         return new UnfoldResult(unfoldedFaces, [], false);

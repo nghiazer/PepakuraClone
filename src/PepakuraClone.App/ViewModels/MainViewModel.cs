@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -13,6 +14,8 @@ using PepakuraClone.Domain.Models;
 using PepakuraClone.Domain.Persistence;
 using PepakuraClone.Domain.Results;
 using PepakuraClone.Domain.Settings;
+// Alias to avoid ambiguity with PepakuraClone.Application namespace
+using WpfApp = System.Windows.Application;
 
 namespace PepakuraClone.App.ViewModels;
 
@@ -38,6 +41,14 @@ public partial class MainViewModel : ObservableObject
     // TD-5: selection overlay cache — avoid rebuilding geometry on every click
     private int?          _cachedOverlayGroupId;
     private Model3DGroup? _cachedOverlayModel;
+
+    // TD-9: undo/redo — snapshots of (_edgeOverrides, piece layouts)
+    private readonly record struct EditSnapshot(
+        IReadOnlyDictionary<int, EdgeType> EdgeOverrides,
+        IReadOnlyDictionary<int, (double X, double Y, double Rot)> PieceLayouts);
+
+    private readonly Stack<EditSnapshot> _undoStack = new();
+    private readonly Stack<EditSnapshot> _redoStack = new();
 
     // ── observable properties ─────────────────────────────────────────────────
     [ObservableProperty] private Model3DGroup? _meshModel;
@@ -184,9 +195,68 @@ public partial class MainViewModel : ObservableObject
     {
         var dlg = new SettingsDialog(_settingsService)
         {
-            Owner = Application.Current.MainWindow
+            Owner = WpfApp.Current.MainWindow
         };
-        dlg.ShowDialog();  // Apply is called inside the dialog
+        dlg.ShowDialog();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  UNDO / REDO  (TD-9)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    public bool CanUndo => _undoStack.Count > 0;
+    public bool CanRedo => _redoStack.Count > 0;
+
+    [RelayCommand(CanExecute = nameof(CanUndo))]
+    private void Undo()
+    {
+        if (_undoStack.Count == 0) return;
+        _redoStack.Push(TakeSnapshot());
+        RestoreSnapshot(_undoStack.Pop());
+        NotifyUndoRedo();
+        StatusText = $"Undo — {_undoStack.Count} step(s) remaining.";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRedo))]
+    private void Redo()
+    {
+        if (_redoStack.Count == 0) return;
+        _undoStack.Push(TakeSnapshot());
+        RestoreSnapshot(_redoStack.Pop());
+        NotifyUndoRedo();
+        StatusText = $"Redo — {_redoStack.Count} step(s) remaining.";
+    }
+
+    /// Call before any operation that modifies edge overrides.
+    private void PushUndoState()
+    {
+        _undoStack.Push(TakeSnapshot());
+        _redoStack.Clear();
+        NotifyUndoRedo();
+    }
+
+    private EditSnapshot TakeSnapshot() => new(
+        new Dictionary<int, EdgeType>(_edgeOverrides),
+        Pieces.ToDictionary(p => p.GroupId,
+                            p => (p.PositionX, p.PositionY, p.Rotation)));
+
+    private void RestoreSnapshot(EditSnapshot snap)
+    {
+        _edgeOverrides.Clear();
+        foreach (var (id, t) in snap.EdgeOverrides) _edgeOverrides[id] = t;
+        RerunUnfold(preservePositions: false);
+        // Restore saved piece positions (best-effort: group IDs may differ after re-run)
+        foreach (var piece in Pieces)
+            if (snap.PieceLayouts.TryGetValue(piece.GroupId, out var pos))
+            { piece.PositionX = pos.X; piece.PositionY = pos.Y; piece.Rotation = pos.Rot; }
+    }
+
+    private void NotifyUndoRedo()
+    {
+        UndoCommand.NotifyCanExecuteChanged();
+        RedoCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -209,6 +279,9 @@ public partial class MainViewModel : ObservableObject
             _currentMeshPath   = dlg.FileName;
             _currentMesh       = _meshService.LoadFromFile(dlg.FileName);
             _edgeOverrides.Clear();
+            _undoStack.Clear();
+            _redoStack.Clear();
+            NotifyUndoRedo();
             InvalidateOverlayCache();
 
             CancelPreviewSilently();
@@ -239,7 +312,7 @@ public partial class MainViewModel : ObservableObject
 
         var dlg = new UnfoldSetupDialog(UnfoldService.BoundingBoxInfo(_currentMesh))
         {
-            Owner = Application.Current.MainWindow
+            Owner = WpfApp.Current.MainWindow
         };
         if (dlg.ShowDialog() != true) return;
 
@@ -287,7 +360,8 @@ public partial class MainViewModel : ObservableObject
         {
             // Re-run unfold to get a fresh UnfoldResult for SVG
             var result = _unfoldService.Unfold(_currentMesh, _edgeOverrides);
-            _exporter.Export(result, dlg.FileName);
+            // TD-8: pass committed texture path so SVG can embed it when UV data is present
+            _exporter.Export(result, dlg.FileName, _committedTexturePath);
             StatusText = $"Exported to {Path.GetFileName(dlg.FileName)}";
         }
         catch (Exception ex) { Error("Export failed", ex); }
@@ -354,7 +428,7 @@ public partial class MainViewModel : ObservableObject
 
     [RelayCommand] private void RemoveTexture()  { if (_currentMesh != null) EnterPreview(null); }
     [RelayCommand] private void ApplyPreview()   { if (!_previewActive) return; _committedTexturePath = _pendingTexturePath; CommitPreview(); }
-    [RelayCommand] private void CancelPreview()  { if (!_previewActive) return; CommitPreview(_revert: true); }
+    [RelayCommand] private void CancelPreview()  { if (!_previewActive) return; CommitPreview(revert: true); }
 
     // ══════════════════════════════════════════════════════════════════════════
     //  EDGE TOGGLE (join / split)  — called from PatternCanvasControl
@@ -369,6 +443,7 @@ public partial class MainViewModel : ObservableObject
     public void ToggleEdge(int meshEdgeId)
     {
         if (_currentMesh == null) return;
+        PushUndoState();
         var current = IsEdgeFold(meshEdgeId) ? EdgeType.Fold : EdgeType.Cut;
         _edgeOverrides[meshEdgeId] = current == EdgeType.Fold ? EdgeType.Cut : EdgeType.Fold;
         try
@@ -421,9 +496,15 @@ public partial class MainViewModel : ObservableObject
         {
             var e = _currentMesh.Edges[eid];
             if (e.Type == EdgeType.Fold && e.ConnectsFaces)
-            { _edgeOverrides[eid] = EdgeType.Cut; changed = true; }
+            { changed = true; break; }
         }
         if (!changed) { StatusText = "Face is already detached."; return; }
+        PushUndoState();
+        foreach (var eid in face.EdgeIds)
+        {
+            var e = _currentMesh.Edges[eid];
+            if (e.Type == EdgeType.Fold && e.ConnectsFaces) _edgeOverrides[eid] = EdgeType.Cut;
+        }
         try { RerunUnfold(); StatusText = $"Detached face {faceId}."; }
         catch (Exception ex) { Error("Detach failed", ex); }
     }
@@ -435,6 +516,7 @@ public partial class MainViewModel : ObservableObject
         var piece = Pieces.FirstOrDefault(p => p.Faces.Any(f => f.FaceId == faceId));
         if (piece == null) { StatusText = "No piece found for that face."; return; }
 
+        PushUndoState();
         foreach (var fd in piece.Faces)
         {
             var mf = _currentMesh.Faces[fd.FaceId];
@@ -459,6 +541,7 @@ public partial class MainViewModel : ObservableObject
             var e = _currentMesh.Edges[eid];
             if (e.ConnectsFaces && (e.FaceA == faceIdB || e.FaceB == faceIdB))
             {
+                PushUndoState();
                 _edgeOverrides[eid] = EdgeType.Fold;
                 try { RerunUnfold(); StatusText = $"Attached face {faceIdA} → {faceIdB}."; }
                 catch (Exception ex) { Error("Attach failed", ex); }
@@ -557,9 +640,29 @@ public partial class MainViewModel : ObservableObject
         RebuildPieces(result, groups, _currentScaleMmPerUnit);
 
         if (preservePositions)
+        {
+            // Restore positions for pieces whose GroupId survived the re-run
+            int newPieceIdx = 0;
             foreach (var p in Pieces)
+            {
                 if (oldPos.TryGetValue(p.GroupId, out var pos))
-                { p.PositionX = pos.PositionX; p.PositionY = pos.PositionY; p.Rotation = pos.Rotation; }
+                {
+                    p.PositionX = pos.PositionX;
+                    p.PositionY = pos.PositionY;
+                    p.Rotation  = pos.Rotation;
+                }
+                else
+                {
+                    // TD-1: new piece spawned by a join/split — place it to the right of
+                    // the paper boundary so it's visible but not stacked on existing pieces.
+                    // Users can drag it to the desired position or use Auto-arrange.
+                    double paperRight = PaperSizeModel.WidthMm + 15;
+                    p.PositionX = paperRight + (newPieceIdx % 4) * 30;
+                    p.PositionY = 15        + (newPieceIdx / 4) * 30;
+                    newPieceIdx++;
+                }
+            }
+        }
 
         // Invalidate overlay cache — mesh topology changed
         InvalidateOverlayCache();
@@ -689,7 +792,6 @@ public partial class MainViewModel : ObservableObject
         StatusText = revert
             ? "Preview cancelled — texture unchanged."
             : $"Texture applied: {Path.GetFileName(path ?? "none")}";
-    }
     }
 
     private void CancelPreviewSilently() { _previewActive = false; _pendingTexturePath = null; }
