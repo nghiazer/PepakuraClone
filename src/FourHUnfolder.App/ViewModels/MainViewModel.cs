@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.IO;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -37,6 +38,9 @@ public partial class MainViewModel : ObservableObject
 
     // edge overrides: mesh edge ID → EdgeType (user's join/split operations)
     private readonly Dictionary<int, EdgeType> _edgeOverrides = new();
+
+    // cached result from last unfold — used by SVG export to retrieve UV coords
+    private UnfoldResult? _lastUnfoldResult;
 
     // TD-5: selection overlay cache — avoid rebuilding geometry on every click
     private int?          _cachedOverlayGroupId;
@@ -365,9 +369,8 @@ public partial class MainViewModel : ObservableObject
 
         try
         {
-            // Re-run unfold to get a fresh UnfoldResult for SVG
-            var result = _unfoldService.Unfold(_currentMesh, _edgeOverrides, _settingsService.Current.Print);
-            // TD-8: pass committed texture path so SVG can embed it when UV data is present
+            // Use current canvas layout (positions/rotations applied) instead of re-running unfold
+            var result = BuildExportLayout();
             _exporter.Export(result, dlg.FileName, _committedTexturePath);
             StatusText = $"Exported to {Path.GetFileName(dlg.FileName)}";
         }
@@ -677,6 +680,7 @@ public partial class MainViewModel : ObservableObject
 
     private void RebuildPieces(UnfoldResult result, List<List<int>> groups, double scale)
     {
+        _lastUnfoldResult = result;   // cache for BuildExportLayout
         Pieces.Clear();
         for (int g = 0; g < groups.Count; g++)
         {
@@ -684,6 +688,58 @@ public partial class MainViewModel : ObservableObject
             var vm      = PieceViewModel.Create(groupId, groups[g], result, _currentMesh!, scale);
             Pieces.Add(vm);
         }
+    }
+
+    // ── SVG export layout builder ─────────────────────────────────────────────
+
+    /// Builds an UnfoldResult whose face/tab coordinates are in canvas-absolute mm,
+    /// reflecting the piece positions and rotations the user has set on the 2D canvas.
+    private UnfoldResult BuildExportLayout()
+    {
+        // Fast UV lookup: FaceId → UV coords from the last unfold
+        var uvByFaceId = _lastUnfoldResult?.Faces
+            .Where(f => f.UVCoords != null)
+            .ToDictionary(f => f.FaceId, f => f.UVCoords!) ?? new();
+
+        var faces = new List<UnfoldedFace>();
+        var tabs  = new List<GlueTab>();
+
+        foreach (var piece in Pieces)
+        {
+            double posX   = piece.PositionX;
+            double posY   = piece.PositionY;
+            double rotRad = piece.Rotation * Math.PI / 180.0;
+            double cosR   = Math.Cos(rotRad);
+            double sinR   = Math.Sin(rotRad);
+
+            // Rotate local (mm) → translate to canvas (mm)
+            Vector2 ToCanvas(double lx, double ly) => new(
+                (float)(lx * cosR - ly * sinR + posX),
+                (float)(lx * sinR + ly * cosR + posY));
+
+            foreach (var fd in piece.Faces)
+            {
+                uvByFaceId.TryGetValue(fd.FaceId, out var uvCoords);
+                faces.Add(new UnfoldedFace(
+                    fd.FaceId,
+                    ToCanvas(fd.V0.X, fd.V0.Y),
+                    ToCanvas(fd.V1.X, fd.V1.Y),
+                    ToCanvas(fd.V2.X, fd.V2.Y),
+                    fd.EdgeIsFold, fd.EdgeIsBoundary, uvCoords));
+            }
+
+            foreach (var tab in piece.GlueTabs)
+            {
+                var pts = tab.Points;
+                tabs.Add(new GlueTab(0, 0,
+                    ToCanvas(pts[0].X, pts[0].Y),
+                    ToCanvas(pts[1].X, pts[1].Y),
+                    ToCanvas(pts[2].X, pts[2].Y),
+                    ToCanvas(pts[3].X, pts[3].Y)));
+            }
+        }
+
+        return new UnfoldResult(faces, tabs, false);
     }
 
     // ── auto-arrange ───────────────────────────────────────────────────────────
@@ -766,6 +822,8 @@ public partial class MainViewModel : ObservableObject
             MeshPath       = _currentMeshPath,
             TexturePath    = _committedTexturePath,
             ScaleMmPerUnit = _currentScaleMmPerUnit,
+            PagesWide      = PagesWide,
+            PagesTall      = PagesTall,
             Paper          = new ProjectState.PaperDto
             {
                 Name     = PaperSizeModel.Name,
@@ -829,6 +887,10 @@ public partial class MainViewModel : ObservableObject
                 piece.Rotation  = layout.Rotation;
             }
         }
+
+        // Restore page layout
+        PagesWide = Math.Max(1, state.PagesWide);
+        PagesTall = Math.Max(1, state.PagesTall);
 
         // Restore texture
         _committedTexturePath = state.TexturePath;

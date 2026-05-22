@@ -1,6 +1,6 @@
 ﻿# 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-22 (session 7 — multi-page layout + full code review)  
+> **Last updated:** 2026-05-22 (session 8 — fix Critical/High bugs from review)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -73,6 +73,8 @@ No circular dependencies. Domain has zero external dependencies.
 | `dotnet test` | ✅ 16 / 16 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App mở, không crash |
 | Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Chạy được, Unfold/Export active |
+| SVG export applies canvas layout (position + rotation) | ✅ Fixed session 8 |
+| Multi-page layout persisted in .pmc | ✅ Fixed session 8 |
 
 ---
 
@@ -102,12 +104,10 @@ No circular dependencies. Domain has zero external dependencies.
 
 ---
 
-## Open Bugs (session 7 review)
+## Open Bugs
 
 | ID | Severity | File | Description | Impact |
 |----|----------|------|-------------|--------|
-| BUG-S7-1 | **Critical** | `MainViewModel.cs:368`, `SvgExporter.cs` | SVG export re-runs `Unfold()` without `_currentScaleMmPerUnit` → raw model-unit coordinates used instead of mm. All piece `PositionX/Y/Rotation` from canvas are completely ignored. | Exported SVG has wrong physical size AND ignores user arrangement — unusable for printing |
-| BUG-S7-2 | **High** | `ProjectState.cs`, `MainViewModel.cs` | `PagesWide` and `PagesTall` are not saved to `.pmc` file. On load, canvas resets to 1×1 page while piece positions reference multi-page coordinates. | After load, pieces on page 2+ are rendered off-canvas background; user must re-run Auto-arrange |
 | BUG-S7-3 | **Medium** | `MainViewModel.cs:719-724` | `RunAutoArrange` wrap condition `curX > gap &&` prevents wrapping when a piece is wider than `paperW - 2*gap`. Such pieces overflow the right edge of the page. | Pieces larger than the page appear cut off by the page background |
 | BUG-S7-4 | **Medium** | `MainViewModel.cs:751-760` | `EnsurePageForPosition` compares piece **centroid** against page edge, not the actual bounding box corner. | Pieces dragged so centroid is on-page but edge overflows don't trigger a new page |
 | BUG-S7-5 | **Low** | `SvgExporter.cs:106` | Page label hardcoded to `"FourHUnfolder Export"` — not configurable, not the filename. | Cosmetic issue in exported SVG |
@@ -122,6 +122,8 @@ No circular dependencies. Domain has zero external dependencies.
 | 6 | BUG-2 | **Medium** | `UnfoldEngine.cs` | `FindSharedLocalIndices` returned wrong apex index on malformed topology | Added guard: throws `InvalidOperationException` if `n < 2`; caller catches and places face at origin fallback |
 | 6 | BUG-3 | **Low** | `ObjMeshLoader.cs` | `float.Parse()` threw `FormatException` on malformed OBJ float tokens | Changed to `float.TryParse()`, returns `0f` on bad input |
 | 6 | BUG-4 | **Low** | `ProjectSerializer.cs` + `ProjectState.cs` | No user feedback when mesh/texture file not found on project load | Added `Warnings` list to `ProjectState` (JSON-ignored); `ProjectSerializer.Load()` appends warnings for unresolved paths; `MainViewModel` shows warnings in `StatusText` |
+| 8 | BUG-S7-1 | **Critical** | `MainViewModel.cs`, `SvgExporter.cs` | SVG export re-ran unfold with raw model-unit coords, ignoring `PositionX/Y/Rotation` of pieces on canvas | Added `BuildExportLayout()`: applies per-piece rotation+translation (mm) from `PieceViewModel`; caches `_lastUnfoldResult` for UV coord lookup |
+| 8 | BUG-S7-2 | **High** | `ProjectState.cs`, `MainViewModel.cs` | `PagesWide`/`PagesTall` not saved to `.pmc` → multi-page layout lost on project load | Added `PagesWide`/`PagesTall` to `ProjectState`; saved in `BuildProjectState`, restored with `Math.Max(1,…)` guard in `RestoreProjectState` |
 | 5 | BUG-0 | **Critical** | `PatternCanvasControl.xaml.cs:477` | `Zoom_Changed` accessed `ZoomLabel.Text` before `ZoomLabel` was initialized — crash on every startup | Added `if (ZoomLabel == null) return;` guard |
 
 ---
@@ -146,8 +148,8 @@ No circular dependencies. Domain has zero external dependencies.
 
 | ID | Priority | File(s) | Description | Suggestion |
 |----|----------|---------|-------------|-----------|
-| TD-S7-1 | **High** | `MainViewModel.cs`, `SvgExporter.cs` | `SvgExporter.Export()` receives no layout data — ignores `_currentScaleMmPerUnit`, piece `PositionX/Y`, and `Rotation`. Export doesn't match canvas view. | Pass `IEnumerable<PieceLayout>` (scale + per-piece transform) to `Export()`; apply affine transform per piece in SVG |
-| TD-S7-2 | **High** | `ProjectState.cs`, `BuildProjectState()` | `PagesWide`/`PagesTall` not serialized to `.pmc` — multi-page layout lost on project save/load | Add `PagesWide`/`PagesTall` fields to `ProjectState`; restore in `RestoreProjectState` |
+| ~~TD-S7-1~~ | ~~High~~ | ~~Fixed session 8~~ | ~~SVG export ignores canvas layout~~ | Fixed: `BuildExportLayout()` applies rotation + translation per piece |
+| ~~TD-S7-2~~ | ~~High~~ | ~~Fixed session 8~~ | ~~PagesWide/PagesTall not in ProjectState~~ | Fixed: added to `ProjectState`, saved/restored in build/restore methods |
 | TD-S7-3 | **Medium** | `MainViewModel.cs RebuildPieces()`, `PatternCanvasControl.cs OnPiecesChanged()` | Each `Pieces.Add()` triggers `Dispatcher.Invoke(RebuildAll)` synchronously → N+1 full canvas rebuilds per unfold. For a 50-piece mesh = 51 rebuilds. | Use `ObservableRangeCollection` or suppress collection events during batch add; fire one rebuild at the end |
 | TD-S7-4 | **Medium** | `MainViewModel.cs:164-168` | `OnSettingsChanged` rebuilds the expensive 3D WPF model on ANY settings change (2D, Print, General), not just 3D-view changes | Guard: only call `BuildWpfModel` when `View3D` properties actually changed |
 | TD-S7-5 | **Medium** | `MainViewModel.cs:696` | `RunAutoArrange` always sets `PagesWide = 1` — auto-arrange never uses horizontal pages. Wide models produce very tall single-column layouts. | Support 2-D strip packing; allow pieces to fill right before going down |
@@ -203,14 +205,10 @@ Tests/                  MstAlgorithmTests (6) UnfoldEngineTests (9)
 
 ## Recommended Next Steps
 
-### Critical (must fix before any real use)
-1. Fix **BUG-S7-1** — SVG export must apply `_currentScaleMmPerUnit` and piece `PositionX/Y/Rotation`; this is the primary output of the app
-2. Fix **BUG-S7-2** — persist `PagesWide`/`PagesTall` in `ProjectState`
-
 ### High priority
-3. Fix **BUG-S7-3** — `RunAutoArrange` wrap condition for pieces wider than page
-4. Fix **BUG-S7-4** — `EnsurePageForPosition` use bounding box, not centroid
-5. Fix **TD-S7-5** — support horizontal pages in `RunAutoArrange` (2D strip packing)
+1. Fix **BUG-S7-3** — `RunAutoArrange` wrap condition for pieces wider than page
+2. Fix **BUG-S7-4** — `EnsurePageForPosition` use bounding box, not centroid
+3. Fix **TD-S7-5** — support horizontal pages in `RunAutoArrange` (2D strip packing)
 
 ### Medium priority
 6. Fix **TD-S7-3** — batch `Pieces.Add()` to avoid N+1 canvas rebuilds
