@@ -38,4 +38,10 @@ public partial class App : System.Windows.Application
         // Load persisted settings before the main window opens
         Services.GetRequiredService<SettingsService>().Load();
     }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        (Services.GetService(typeof(MainViewModel)) as System.IDisposable)?.Dispose();
+        base.OnExit(e);
+    }
 }

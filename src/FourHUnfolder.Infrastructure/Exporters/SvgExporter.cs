@@ -103,7 +103,7 @@ public class SvgExporter : IExporter
         sb.AppendLine("  </defs>");
 
         if (p.IncludePageLabel)
-            sb.AppendLine($"  <text x=\"{F(margin)}\" y=\"{F(margin - 4)}\" class=\"label\">FourHUnfolder Export</text>");
+            sb.AppendLine($"  <text x=\"{F(margin)}\" y=\"{F(margin - 4)}\" class=\"label\">{Path.GetFileNameWithoutExtension(filePath)}</text>");
 
         // ── face polygons ──────────────────────────────────────────────────────
         foreach (var face in result.Faces)

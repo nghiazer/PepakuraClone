@@ -49,7 +49,11 @@ public sealed class Mesh
 
         if (_edgeMap.TryGetValue(key, out var edgeId))
         {
-            Edges[edgeId].FaceB = faceId;
+            // Only assign FaceB if not yet set; a 3rd+ face sharing this edge
+            // indicates non-manifold topology — silently ignore the extra face
+            // rather than overwriting and corrupting the dual graph.
+            if (Edges[edgeId].FaceB < 0)
+                Edges[edgeId].FaceB = faceId;
             return edgeId;
         }
 

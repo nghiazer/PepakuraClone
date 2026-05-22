@@ -34,6 +34,9 @@ public partial class PatternCanvasControl : UserControl
     private Point           _dragOriginMouse;
     private double          _dragOriginX, _dragOriginY;
 
+    // TD-N6: pre-drag snapshot for undo support (captured on MouseDown)
+    private Dictionary<int, (double X, double Y, double Rot)>? _preDragPositions;
+
     // ── constructor ──────────────────────────────────────────────────────────
     public PatternCanvasControl()
     {
@@ -389,6 +392,11 @@ public partial class PatternCanvasControl : UserControl
         _dragOriginMouse = e.GetPosition(RootCanvas);
         _dragOriginX     = piece.PositionX;
         _dragOriginY     = piece.PositionY;
+
+        // Capture pre-drag layout snapshot for undo (TD-N6)
+        _preDragPositions = _vm?.Pieces
+            .ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
+
         RootCanvas.CaptureMouse();
         e.Handled = true;
     }
@@ -421,16 +429,39 @@ public partial class PatternCanvasControl : UserControl
         if (_dragging == null) return;
         RootCanvas.ReleaseMouseCapture();
 
-        // Expand page grid based on the piece's actual bounding box right/bottom edge
-        if (_vm != null && _dragging.Faces.Length > 0)
+        bool moved = Math.Abs(_dragging.PositionX - _dragOriginX) > 0.5
+                  || Math.Abs(_dragging.PositionY - _dragOriginY) > 0.5;
+
+        if (moved && _vm != null)
         {
-            var allX = _dragging.Faces.SelectMany(f => new[] { f.V0.X, f.V1.X, f.V2.X });
-            var allY = _dragging.Faces.SelectMany(f => new[] { f.V0.Y, f.V1.Y, f.V2.Y });
-            double rightMm  = _dragging.PositionX + allX.Max();
-            double bottomMm = _dragging.PositionY + allY.Max();
-            _vm.EnsurePageForPosition(rightMm, bottomMm);
+            // Push pre-drag snapshot for undo (TD-N6)
+            if (_preDragPositions != null)
+                _vm.PushDragUndo(_preDragPositions);
+
+            // Expand page grid based on rotated bounding box (fix for unrotated bbox edge case)
+            if (_dragging.Faces.Length > 0)
+            {
+                var allX = _dragging.Faces.SelectMany(f => new[] { f.V0.X, f.V1.X, f.V2.X });
+                var allY = _dragging.Faces.SelectMany(f => new[] { f.V0.Y, f.V1.Y, f.V2.Y });
+                double lMinX = allX.Min(), lMaxX = allX.Max();
+                double lMinY = allY.Min(), lMaxY = allY.Max();
+
+                double rotRad = _dragging.Rotation * Math.PI / 180.0;
+                double cosR = Math.Cos(rotRad), sinR = Math.Sin(rotRad);
+
+                // Check all four rotated bounding box corners
+                double[] cxs = { lMinX, lMaxX, lMinX, lMaxX };
+                double[] cys = { lMinY, lMinY, lMaxY, lMaxY };
+                double maxRx = cxs.Zip(cys, (x, y) => x * cosR - y * sinR).Max();
+                double maxRy = cxs.Zip(cys, (x, y) => x * sinR + y * cosR).Max();
+
+                _vm.EnsurePageForPosition(
+                    _dragging.PositionX + maxRx,
+                    _dragging.PositionY + maxRy);
+            }
         }
 
+        _preDragPositions = null;
         _dragging = null;
     }
 

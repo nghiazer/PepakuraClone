@@ -20,7 +20,7 @@ using WpfApp = System.Windows.Application;
 
 namespace FourHUnfolder.App.ViewModels;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly MeshService       _meshService;
     private readonly UnfoldService     _unfoldService;
@@ -44,6 +44,9 @@ public partial class MainViewModel : ObservableObject
 
     // suppress canvas CollectionChanged rebuilds during batch Pieces.Add() in RebuildPieces
     internal bool BatchingPieces;
+
+    // O(1) face→piece lookup built in RebuildPieces (faceId → GroupId)
+    private readonly Dictionary<int, int> _faceToGroup = new();
 
     // bumped after each RebuildPieces() to trigger a single canvas rebuild
     [ObservableProperty] private int _piecesVersion;
@@ -492,8 +495,12 @@ public partial class MainViewModel : ObservableObject
         if (_currentMesh == null || faceId < 0 || faceId >= _currentMesh.Faces.Count) return;
         SelectedFaceId = faceId;
 
-        // Highlight corresponding 2D piece and build 3D overlay
-        var piece = Pieces.FirstOrDefault(p => p.Faces.Any(f => f.FaceId == faceId));
+        // O(1) lookup via pre-built dict; fall back to linear scan if dict is stale
+        PieceViewModel? piece = null;
+        if (_faceToGroup.TryGetValue(faceId, out var gid))
+            piece = Pieces.FirstOrDefault(p => p.GroupId == gid);
+        piece ??= Pieces.FirstOrDefault(p => p.Faces.Any(f => f.FaceId == faceId));
+
         foreach (var p in Pieces) p.IsSelected = (p == piece);
         BuildSelectionOverlay(piece);
 
@@ -709,6 +716,12 @@ public partial class MainViewModel : ObservableObject
         }
         BatchingPieces = false;
         PiecesVersion++;   // triggers exactly one RebuildAll in the canvas
+
+        // Rebuild O(1) face→group lookup
+        _faceToGroup.Clear();
+        foreach (var p in Pieces)
+            foreach (var fd in p.Faces)
+                _faceToGroup[fd.FaceId] = p.GroupId;
     }
 
     // ── SVG export layout builder ─────────────────────────────────────────────
@@ -828,6 +841,17 @@ public partial class MainViewModel : ObservableObject
     /// Expands the page grid if a piece's bounding box extends beyond the current pages.
     /// <param name="rightMm">Rightmost mm coordinate of the piece's bounding box.</param>
     /// <param name="bottomMm">Bottommost mm coordinate of the piece's bounding box.</param>
+    /// Pushes an undo snapshot that captures the pre-drag positions.
+    /// Called from the canvas after a drag completes with actual movement.
+    public void PushDragUndo(IReadOnlyDictionary<int, (double X, double Y, double Rot)> preDrag)
+    {
+        _undoStack.Push(new EditSnapshot(
+            _edgeOverrides.ToDictionary(k => k.Key, v => v.Value),
+            preDrag));
+        _redoStack.Clear();
+        NotifyUndoRedo();
+    }
+
     public void EnsurePageForPosition(double rightMm, double bottomMm)
     {
         double paperW     = PaperSizeModel.WidthMm;
@@ -1077,6 +1101,11 @@ public partial class MainViewModel : ObservableObject
         bmp.EndInit();
         bmp.Freeze();
         return bmp;
+    }
+
+    public void Dispose()
+    {
+        _settingsService.SettingsChanged -= OnSettingsChanged;
     }
 
     private void Error(string title, Exception ex)

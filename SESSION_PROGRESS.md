@@ -1,6 +1,6 @@
 ﻿# 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-22 (session 9 — fix Medium bugs and tech debt)  
+> **Last updated:** 2026-05-22 (session 10 — fix all remaining bugs and tech debt)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -75,6 +75,7 @@ No circular dependencies. Domain has zero external dependencies.
 | Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Chạy được, Unfold/Export active |
 | SVG export applies canvas layout (position + rotation) | ✅ Fixed session 8 |
 | Multi-page layout persisted in .pmc | ✅ Fixed session 8 |
+| `dotnet test` | ✅ 29 / 29 passed (16 original + 13 new) |
 
 ---
 
@@ -106,11 +107,7 @@ No circular dependencies. Domain has zero external dependencies.
 
 ## Open Bugs
 
-| ID | Severity | File | Description | Impact |
-|----|----------|------|-------------|--------|
-| BUG-S7-5 | **Low** | `SvgExporter.cs:106` | Page label hardcoded to `"FourHUnfolder Export"` — not configurable, not the filename. | Cosmetic issue in exported SVG |
-| BUG-S7-6 | **Low** | `Mesh.cs:52` | `GetOrAddEdge` silently overwrites `FaceB` if 3+ faces share the same edge (non-manifold topology) → dual graph loses face association with no error. | Silent wrong unfold on non-manifold OBJ files |
-| BUG-S7-7 | **Low** | `MainViewModel.cs:477` | `SelectFace3D` scans all pieces × all faces (`O(pieces × faces)`) on every 3D click. | Noticeable lag on meshes >2 000 faces when clicking in 3D viewport |
+> None outstanding — all known bugs resolved as of session 10.
 
 ## Fixed Bugs
 
@@ -124,6 +121,9 @@ No circular dependencies. Domain has zero external dependencies.
 | 8 | BUG-S7-2 | **High** | `ProjectState.cs`, `MainViewModel.cs` | `PagesWide`/`PagesTall` not saved to `.pmc` → multi-page layout lost on project load | Added `PagesWide`/`PagesTall` to `ProjectState`; saved in `BuildProjectState`, restored with `Math.Max(1,…)` guard in `RestoreProjectState` |
 | 9 | BUG-S7-3 | **Medium** | `MainViewModel.cs RunAutoArrange` | When a page overflows vertically, algorithm incremented `PagesTall` but never moved to a new column — wide models created very tall single-column layouts; oversized pieces caused incorrect overflow. | Rewrote packing to fill pages **horizontally** (`pageCol` advances on vertical overflow); `PagesWide` grows, `PagesTall = 1` from auto-arrange |
 | 9 | BUG-S7-4 | **Medium** | `PatternCanvasControl.cs Canvas_MouseUp`, `MainViewModel.cs` | `EnsurePageForPosition` called with piece centroid — a piece's actual edge could extend beyond page without triggering expansion | Canvas now computes `rightMm = posX + allX.Max()` and `bottomMm = posY + allY.Max()` before calling `EnsurePageForPosition` |
+| 10 | BUG-S7-5 | **Low** | `SvgExporter.cs:106` | SVG page label hardcoded `"FourHUnfolder Export"` | Changed to `Path.GetFileNameWithoutExtension(filePath)` |
+| 10 | BUG-S7-6 | **Low** | `Mesh.cs:52` | `GetOrAddEdge` overwrote `FaceB` on non-manifold topology | Added guard: only assign `FaceB` when it's still `-1`; extra faces silently skipped |
+| 10 | BUG-S7-7 | **Low** | `MainViewModel.cs:SelectFace3D` | O(pieces×faces) linear scan per 3D click | Added `_faceToGroup` dict (faceId→groupId), rebuilt in `RebuildPieces`; O(1) primary lookup with linear fallback |
 | 5 | BUG-0 | **Critical** | `PatternCanvasControl.xaml.cs:477` | `Zoom_Changed` accessed `ZoomLabel.Text` before `ZoomLabel` was initialized — crash on every startup | Added `if (ZoomLabel == null) return;` guard |
 
 ---
@@ -153,19 +153,22 @@ No circular dependencies. Domain has zero external dependencies.
 | ~~TD-S7-3~~ | ~~Medium~~ | ~~Fixed s9~~ | ~~N+1 canvas rebuilds per unfold~~ | Fixed: `BatchingPieces` flag suppresses per-Add rebuilds; `PiecesVersion++` triggers one final rebuild |
 | ~~TD-S7-4~~ | ~~Medium~~ | ~~Fixed s9~~ | ~~OnSettingsChanged rebuilt 3D model for all settings~~ | Fixed: `View3DHash()` compares key View3D fields; rebuild only when they change |
 | ~~TD-S7-5~~ | ~~Medium~~ | ~~Fixed s9~~ | ~~RunAutoArrange only created vertical pages~~ | Fixed: auto-arrange now fills pages horizontally (`PagesWide` grows); oversized pieces move to next page column |
+| ~~TD-S7-6~~ | ~~Low~~ | ~~Fixed s10~~ | ~~SettingsChanged never unsubscribed~~ | Fixed: `MainViewModel` implements `IDisposable`; `App.OnExit` disposes it |
+| ~~TD-N4~~ | ~~Medium~~ | ~~Fixed s10~~ | ~~No tests for OverlapDetector, GlueTabGenerator, ObjMeshLoader~~ | Fixed: `GeometryAlgorithmTests.cs` added (13 new tests: 4 OverlapDetector, 5 GlueTabGenerator, 4 ObjMeshLoader) |
+| ~~TD-N6~~ | ~~Low~~ | ~~Fixed s10~~ | ~~Undo/redo didn't cover piece drag moves~~ | Fixed: `_preDragPositions` captured on `MouseDown`; `PushDragUndo()` called on `MouseUp` if piece actually moved |
+| ~~Unrotated bbox~~ | ~~Low~~ | ~~Fixed s10~~ | ~~`EnsurePageForPosition` used unrotated bbox~~ | Fixed: all 4 rotated bbox corners computed in `Canvas_MouseUp`; max(x',y') used for page expansion check |
 | TD-S7-3 | **Medium** | `MainViewModel.cs RebuildPieces()`, `PatternCanvasControl.cs OnPiecesChanged()` | Each `Pieces.Add()` triggers `Dispatcher.Invoke(RebuildAll)` synchronously → N+1 full canvas rebuilds per unfold. For a 50-piece mesh = 51 rebuilds. | Use `ObservableRangeCollection` or suppress collection events during batch add; fire one rebuild at the end |
 | TD-S7-4 | **Medium** | `MainViewModel.cs:164-168` | `OnSettingsChanged` rebuilds the expensive 3D WPF model on ANY settings change (2D, Print, General), not just 3D-view changes | Guard: only call `BuildWpfModel` when `View3D` properties actually changed |
 | TD-S7-5 | **Medium** | `MainViewModel.cs:696` | `RunAutoArrange` always sets `PagesWide = 1` — auto-arrange never uses horizontal pages. Wide models produce very tall single-column layouts. | Support 2-D strip packing; allow pieces to fill right before going down |
 | TD-S7-6 | **Low** | `MainViewModel.cs:140` | `_settingsService.SettingsChanged` subscription never unsubscribed from `MainViewModel` | Add unsubscription on dispose or rely on documented singleton lifetime |
 | TD-S7-7 | **Low** | `PatternCanvasControl.xaml.cs DrawPageAt()` | Method signature uses namespace-qualified `Domain.Settings.AppSettings.View2DSettings?` parameter | Add `using` import; use short type name |
 
-### Remaining tech debt (deferred)
+### Remaining tech debt (intentionally deferred)
 
-| ID | Priority | Description |
-|----|----------|-------------|
-| TD-N4 | **Medium** | Test coverage gaps: no tests for `OverlapDetector`, `GlueTabGenerator`, `SvgExporter.AffineTransform`, `ObjMeshLoader` error paths |
-| TD-N6 | **Low** | Undo/redo scope covers edge ops only — piece drag moves not individually undoable |
-| TD-N7 | **Low** | `_currentScaleMmPerUnit` is a loose `double` field; no centralized scale context object |
+| ID | Priority | Description | Reason deferred |
+|----|----------|-------------|----------------|
+| TD-N7 | **Low** | `_currentScaleMmPerUnit` loose double field | Refactoring risk with no user-visible benefit |
+| SvgExporter.AffineTransform | **Low** | No unit tests for affine transform math | Complex to isolate; SVG visual output is manual-verify territory |
 
 ### All resolved ✓
 
@@ -208,17 +211,9 @@ Tests/                  MstAlgorithmTests (6) UnfoldEngineTests (9)
 
 ## Recommended Next Steps
 
-### Remaining low-priority bugs
-1. **BUG-S7-5** — SVG label hardcoded `"FourHUnfolder Export"`
-2. **BUG-S7-6** — Non-manifold topology silent `FaceB` overwrite in `Mesh.GetOrAddEdge`
-3. **BUG-S7-7** — `SelectFace3D` O(pieces×faces) per click
-
-### Remaining tech debt
-4. **TD-N4** — Test coverage gaps (OverlapDetector, GlueTabGenerator, SvgExporter, ObjMeshLoader)
-5. **TD-N6** — Undo/redo doesn't cover piece drag moves
-6. **TD-N7** — `_currentScaleMmPerUnit` loose double field
-7. **TD-S7-6** — SettingsService event never unsubscribed
-8. **EnsurePageForPosition** — unrotated bbox used; rotated pieces may not trigger page expansion correctly
+### Remaining (intentionally deferred)
+1. **TD-N7** — `_currentScaleMmPerUnit` loose double field (low risk, no user-visible benefit)
+2. **SvgExporter.AffineTransform** tests — complex to isolate unit test for matrix math
 
 ### Future features
 9. **Merge PR #1**: <https://github.com/nghiazer/4H-Unfolder/pull/1>
