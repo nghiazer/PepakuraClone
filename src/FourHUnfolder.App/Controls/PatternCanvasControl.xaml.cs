@@ -474,6 +474,8 @@ public partial class PatternCanvasControl : UserControl
     private void Zoom_Changed(object s, RoutedPropertyChangedEventArgs<double> e)
     {
         _pxPerMm = e.NewValue;
+        // ZoomLabel is null when Slider fires ValueChanged during InitializeComponent XAML parsing
+        if (ZoomLabel == null) return;
         ZoomLabel.Text = $"{_pxPerMm:F1} px/mm";
         if (_vm != null) { _vm.PixelsPerMm = _pxPerMm; RebuildAll(); }
     }

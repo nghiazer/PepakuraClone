@@ -22,3 +22,7 @@ Thumbs.db
 # Test results
 TestResults/
 coverage/
+
+# Publish output
+publish/
+publish_small/

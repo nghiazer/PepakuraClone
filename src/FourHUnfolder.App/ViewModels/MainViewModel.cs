@@ -54,8 +54,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private Model3DGroup? _meshModel;
     [ObservableProperty] private Model3DGroup? _selectionOverlayModel;  // 3D highlight
     [ObservableProperty] private string        _statusText   = "Ready — load a mesh to begin.";
-    [ObservableProperty] private bool          _canUnfold;
-    [ObservableProperty] private bool          _canExport;
+    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(UnfoldCommand))]  private bool _canUnfold;
+    [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(ExportSvgCommand))]  private bool _canExport;
     [ObservableProperty] private bool          _isUnfolded;
     [ObservableProperty] private int           _selectedFaceId = -1;
 
