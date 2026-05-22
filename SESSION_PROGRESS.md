@@ -95,7 +95,7 @@ No circular dependencies. Domain has zero external dependencies.
 ## All Bugs Fixed (cumulative)
 
 | Session | Severity | Bug | Fix |
-|---------|----------|-----|-----|\
+|---------|----------|-----|-----|
 | 4 (build) | Critical | `MainViewModel.cs` — extra spurious `}` after `CommitPreview` body, closing the class too early → `CS1022` | Removed extra brace |
 | 4 (build) | High | `App.xaml.cs` — `FourHUnfolder.Application` namespace shadowed `System.Windows.Application` type → `CS0118` | Changed to `System.Windows.Application` explicit |
 | 4 (build) | High | `PatternCanvasControl.xaml.cs` — `file static class` with `operator *` → static classes can't hold user-defined operators → `CS0715` | Replaced with `private Point Sc(Point p)` instance method |
