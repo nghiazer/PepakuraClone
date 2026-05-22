@@ -71,6 +71,8 @@ No circular dependencies. Domain has zero external dependencies.
 |------|--------|
 | `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 0 warnings |
 | `dotnet test` | ✅ 16 / 16 passed |
+| `dotnet run --project src/FourHUnfolder.App` | ✅ App mở, không crash |
+| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Chạy được |
 
 ---
 
@@ -110,6 +112,12 @@ No circular dependencies. Domain has zero external dependencies.
 | BUG-2 | **Medium** | `UnfoldEngine.cs:176-182` | `FindSharedLocalIndices` fills at most `n` entries; if a face shares < 2 vertices with the edge (malformed topology), `r[1]` stays `0` → `la = 3 − ls[0] − 0` → wrong apex index | Silent wrong geometry on malformed OBJ; no crash but incorrect unfold output |
 | BUG-3 | **Low** | `ObjMeshLoader.cs:130-131` | `F()` calls `float.Parse()` with no guard; any malformed float token in OBJ (e.g. `"1.0e"`, `"-"`) throws unhandled `FormatException` | Hard crash on load; error message unhelpful ("Input string was not in correct format") |
 | BUG-4 | **Low** | `ProjectSerializer.cs:75` | `Resolve()` returns `null` when both relative and absolute paths don't resolve; `MainViewModel` silently skips loading mesh/texture with no user message | User loads project, canvas stays empty, no explanation |
+
+## Fixed Bugs (session 5)
+
+| ID | Severity | File | Description | Fix |
+|----|----------|------|-------------|-----|
+| BUG-0 | **Critical** | `PatternCanvasControl.xaml.cs:477` | `Zoom_Changed` accessed `ZoomLabel.Text` before `ZoomLabel` was initialized — WPF fires `Slider.ValueChanged` during `InitializeComponent()` XAML parsing before named elements exist → `NullReferenceException` → app crash on every startup | Added `if (ZoomLabel == null) return;` guard; `OnDataContextChanged` re-fires the handler correctly once DataContext is set |
 
 ---
 
