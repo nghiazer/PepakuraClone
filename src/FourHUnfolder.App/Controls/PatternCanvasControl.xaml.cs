@@ -32,6 +32,22 @@ public partial class PatternCanvasControl : UserControl
     // TD-4 fix: explicit subscription tracking to prevent memory leaks
     private readonly Dictionary<PieceViewModel, PropertyChangedEventHandler> _pieceHandlers = new();
 
+    // edge-edit mode
+    private bool  _editModeActive;
+    private Line? _hoveredEdgeLine;   // currently highlighted edge (restored on leave / mode-off)
+
+    // rotate-by-point mode
+    private bool   _rotatePtActive;
+    private int    _rotatePtPhase;    // 0=pick pivot, 1=pick handle, 2=live rotation
+    private readonly List<(Ellipse Dot, PieceViewModel Piece, double Lx, double Ly)> _vtxDots = new();
+    private Ellipse?        _pivotDot;
+    private Ellipse?        _handleDot;
+    private PieceViewModel? _rotPiece;
+    private double          _pivotCx, _pivotCy;      // pivot canvas-pixel position (fixed during drag)
+    private double          _pivotLx, _pivotLy;      // pivot piece-local mm coords
+    private double          _handleAngle0;            // initial pivot→handle angle when drag started
+    private double          _pieceRotation0;          // piece.Rotation when drag started
+
     // drag state
     private PieceViewModel? _dragging;
     private Point           _dragOriginMouse;
@@ -100,6 +116,10 @@ public partial class PatternCanvasControl : UserControl
     // ── full rebuild ─────────────────────────────────────────────────────────
     private void RebuildAll()
     {
+        _hoveredEdgeLine = null;   // old Line elements are discarded; no restore needed
+        ClearVtxDots();            // dots replaced below; unsubscribes handlers first
+        ResetRotatePhase();        // cancel any in-progress rotation on rebuild
+
         // TD-4 fix: unsubscribe all tracked PropertyChanged handlers before clearing
         foreach (var (piece, handler) in _pieceHandlers)
             piece.PropertyChanged -= handler;
@@ -118,6 +138,8 @@ public partial class PatternCanvasControl : UserControl
 
         SyncAllTransforms();
         UpdateCanvasSize();
+
+        if (_rotatePtActive) ShowVtxDots();
     }
 
     // ── paper background ─────────────────────────────────────────────────────
@@ -234,7 +256,7 @@ public partial class PatternCanvasControl : UserControl
                 case nameof(PieceViewModel.PositionX):
                 case nameof(PieceViewModel.PositionY):
                 case nameof(PieceViewModel.Rotation):
-                    Dispatcher.Invoke(() => SyncTransform(piece));
+                    Dispatcher.Invoke(() => { SyncTransform(piece); if (_rotatePtActive) UpdateVtxDotPositions(piece); });
                     break;
             }
         };
@@ -343,7 +365,13 @@ public partial class PatternCanvasControl : UserControl
                     Tag             = (PieceId: piece.GroupId, FaceId: fd.FaceId,
                                        EdgeIdx: i, MeshEdgeId: meshEdgeId)
                 };
-                if (!isBoundary) line.MouseRightButtonDown += Edge_RightClick;
+                if (!isBoundary)
+                {
+                    line.MouseRightButtonDown += Edge_RightClick;
+                    line.MouseEnter           += Edge_MouseEnter;
+                    line.MouseLeave           += Edge_MouseLeave;
+                    line.MouseLeftButtonDown  += Edge_LeftClick;
+                }
                 container.Children.Add(line);
             }
         }
@@ -401,6 +429,7 @@ public partial class PatternCanvasControl : UserControl
     // ── drag handling ────────────────────────────────────────────────────────
     private void Piece_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (_editModeActive || _rotatePtActive) return;   // special modes suppress drag
         if (sender is not Canvas c || c.Tag is not PieceViewModel piece) return;
 
         if (_vm != null)
@@ -423,8 +452,42 @@ public partial class PatternCanvasControl : UserControl
         e.Handled = true;
     }
 
+    private void Canvas_LeftDown(object sender, MouseButtonEventArgs e)
+    {
+        // In phase 2, a canvas click (not on a dot) confirms rotation
+        if (_rotatePtPhase == 2)
+        {
+            if (_preDragPositions != null && _vm != null)
+                _vm.PushDragUndo(_preDragPositions);
+            ResetRotatePhase();
+            e.Handled = true;
+        }
+    }
+
     private void Canvas_MouseMove(object sender, MouseEventArgs e)
     {
+        // ── rotate-by-point live drag (phase 2) ───────────────────────────────
+        if (_rotatePtPhase == 2 && _rotPiece != null)
+        {
+            var mouse = e.GetPosition(RootCanvas);
+            double angle    = Math.Atan2(mouse.Y - _pivotCy, mouse.X - _pivotCx);
+            double angleDelta = angle - _handleAngle0;
+            while (angleDelta >  Math.PI) angleDelta -= 2 * Math.PI;
+            while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
+
+            double newRotDeg = _pieceRotation0 + angleDelta * 180.0 / Math.PI;
+            double cosR = Math.Cos(newRotDeg * Math.PI / 180.0);
+            double sinR = Math.Sin(newRotDeg * Math.PI / 180.0);
+
+            // Keep pivot canvas-pixel position fixed
+            _rotPiece.PositionX = (_pivotCx - PaperMarginPx) / _pxPerMm - (_pivotLx * cosR - _pivotLy * sinR);
+            _rotPiece.PositionY = (_pivotCy - PaperMarginPx) / _pxPerMm - (_pivotLx * sinR + _pivotLy * cosR);
+            _rotPiece.Rotation  = (newRotDeg % 360 + 360) % 360;
+            SyncTransform(_rotPiece);
+            UpdateVtxDotPositions(_rotPiece);
+            return;
+        }
+
         if (_dragging == null) return;
         var pos   = e.GetPosition(RootCanvas);
         var delta = pos - _dragOriginMouse;
@@ -557,6 +620,229 @@ public partial class PatternCanvasControl : UserControl
         if (ZoomLabel == null) return;
         ZoomLabel.Text = $"{_pxPerMm:F1} px/mm";
         if (_vm != null) { _vm.PixelsPerMm = _pxPerMm; RebuildAll(); }
+    }
+
+    // ── rotate-by-point mode ──────────────────────────────────────────────────
+
+    private void RotatePoint_Click(object s, RoutedEventArgs e)
+    {
+        _rotatePtActive = RotatePointBtn.IsChecked == true;
+        // Mutual exclusion with edge-edit mode
+        if (_rotatePtActive && _editModeActive)
+        {
+            _editModeActive = false;
+            EditEdgesBtn.IsChecked = false;
+            if (_hoveredEdgeLine != null) { RestoreEdgeStyle(_hoveredEdgeLine); _hoveredEdgeLine = null; }
+        }
+        RootCanvas.Cursor = _rotatePtActive ? Cursors.Arrow : null;
+        if (_rotatePtActive)
+            ShowVtxDots();
+        else
+        {
+            ClearVtxDots();
+            ResetRotatePhase();
+        }
+    }
+
+    // ── vertex dot helpers ────────────────────────────────────────────────────
+
+    private void ShowVtxDots()
+    {
+        ClearVtxDots();
+        foreach (var piece in _vm?.Pieces ?? [])
+        {
+            var seen = new HashSet<(int, int)>();
+            foreach (var fd in piece.Faces)
+                foreach (var v in new[] { fd.V0, fd.V1, fd.V2 })
+                {
+                    var key = ((int)Math.Round(v.X * 100), (int)Math.Round(v.Y * 100));
+                    if (!seen.Add(key)) continue;
+                    AddVtxDot(piece, v.X, v.Y);
+                }
+        }
+    }
+
+    private void AddVtxDot(PieceViewModel piece, double lx, double ly)
+    {
+        const double R = 5.0;
+        var dot = new Ellipse
+        {
+            Width  = R * 2, Height = R * 2,
+            Fill   = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255)),
+            Stroke = new SolidColorBrush(Color.FromArgb(160, 180, 180, 180)),
+            StrokeThickness  = 1,
+            Cursor           = Cursors.Hand,
+            IsHitTestVisible = true
+        };
+        dot.MouseEnter           += VtxDot_MouseEnter;
+        dot.MouseLeave           += VtxDot_MouseLeave;
+        dot.MouseLeftButtonDown  += VtxDot_Click;
+
+        PositionVtxDot(dot, piece, lx, ly, R);
+        Panel.SetZIndex(dot, 100);
+        RootCanvas.Children.Add(dot);
+        _vtxDots.Add((dot, piece, lx, ly));
+    }
+
+    private void PositionVtxDot(Ellipse dot, PieceViewModel piece, double lx, double ly, double r)
+    {
+        var (cx, cy) = VtxCanvasPx(piece, lx, ly);
+        Canvas.SetLeft(dot, cx - r);
+        Canvas.SetTop (dot, cy - r);
+    }
+
+    private (double cx, double cy) VtxCanvasPx(PieceViewModel piece, double lx, double ly)
+    {
+        double rotRad = piece.Rotation * Math.PI / 180.0;
+        double cosR = Math.Cos(rotRad), sinR = Math.Sin(rotRad);
+        double lpx = lx * _pxPerMm, lpy = ly * _pxPerMm;
+        double cx = lpx * cosR - lpy * sinR + piece.PositionX * _pxPerMm + PaperMarginPx;
+        double cy = lpx * sinR + lpy * cosR + piece.PositionY * _pxPerMm + PaperMarginPx;
+        return (cx, cy);
+    }
+
+    private void UpdateVtxDotPositions(PieceViewModel piece)
+    {
+        const double R = 5.0;
+        foreach (var (dot, p, lx, ly) in _vtxDots)
+            if (p == piece) PositionVtxDot(dot, piece, lx, ly, R);
+    }
+
+    private void ClearVtxDots()
+    {
+        foreach (var (dot, _, _, _) in _vtxDots)
+        {
+            dot.MouseEnter          -= VtxDot_MouseEnter;
+            dot.MouseLeave          -= VtxDot_MouseLeave;
+            dot.MouseLeftButtonDown -= VtxDot_Click;
+            RootCanvas.Children.Remove(dot);
+        }
+        _vtxDots.Clear();
+        _pivotDot = _handleDot = null;
+    }
+
+    private void VtxDot_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is not Ellipse dot || dot == _pivotDot || dot == _handleDot) return;
+        dot.Fill = new SolidColorBrush(Color.FromArgb(255, 255, 220, 80));
+    }
+
+    private void VtxDot_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (sender is not Ellipse dot || dot == _pivotDot || dot == _handleDot) return;
+        dot.Fill = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255));
+    }
+
+    private static readonly Brush _dotRedBrush = new SolidColorBrush(Color.FromRgb(220, 50, 50));
+
+    private void VtxDot_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Ellipse dot) return;
+        e.Handled = true;
+
+        var entry = _vtxDots.FirstOrDefault(t => t.Dot == dot);
+        if (entry == default) return;
+        var (_, piece, lx, ly) = entry;
+
+        if (_rotatePtPhase == 0)
+        {
+            // Select pivot
+            _pivotDot = dot;
+            dot.Fill  = _dotRedBrush;
+            _rotPiece = piece;
+            _pivotLx  = lx;  _pivotLy = ly;
+            (_pivotCx, _pivotCy) = VtxCanvasPx(piece, lx, ly);
+            _rotatePtPhase = 1;
+        }
+        else if (_rotatePtPhase == 1 && dot != _pivotDot)
+        {
+            // Select handle → start live rotation
+            _handleDot = dot;
+            dot.Fill   = _dotRedBrush;
+            var (hcx, hcy) = VtxCanvasPx(piece, lx, ly);
+            _handleAngle0   = Math.Atan2(hcy - _pivotCy, hcx - _pivotCx);
+            _pieceRotation0 = piece.Rotation;
+            // Capture pre-rotate state for undo
+            _preDragPositions = _vm?.Pieces
+                .ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
+            _rotatePtPhase = 2;
+        }
+    }
+
+    private void ResetRotatePhase()
+    {
+        const byte A = 210;
+        var whiteFill = new SolidColorBrush(Color.FromArgb(A, 255, 255, 255));
+        if (_pivotDot  != null) { _pivotDot.Fill  = whiteFill; _pivotDot  = null; }
+        if (_handleDot != null) { _handleDot.Fill = whiteFill; _handleDot = null; }
+        _rotatePtPhase    = 0;
+        _rotPiece         = null;
+        _preDragPositions = null;
+    }
+
+    // ── edge-edit mode ────────────────────────────────────────────────────────
+
+    private void EditEdges_Click(object s, RoutedEventArgs e)
+    {
+        // Mutual exclusion with rotate-point mode
+        if (EditEdgesBtn.IsChecked == true && _rotatePtActive)
+        {
+            _rotatePtActive = false;
+            RotatePointBtn.IsChecked = false;
+            ClearVtxDots();
+            ResetRotatePhase();
+            RootCanvas.Cursor = null;
+        }
+        _editModeActive = EditEdgesBtn.IsChecked == true;
+        RootCanvas.Cursor = _editModeActive ? Cursors.Arrow : null;
+
+        // Restore any currently-highlighted edge when turning mode off
+        if (!_editModeActive && _hoveredEdgeLine != null)
+        {
+            RestoreEdgeStyle(_hoveredEdgeLine);
+            _hoveredEdgeLine = null;
+        }
+    }
+
+    private void Edge_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (!_editModeActive || sender is not Line line) return;
+        _hoveredEdgeLine = line;
+        var hoverBrush = HexBrush(_vm?.View2DSettings?.EdgeHoverColor, "#ffff9900");
+        line.Stroke          = hoverBrush;
+        line.StrokeThickness = 3.5;
+        line.StrokeDashArray = null;
+    }
+
+    private void Edge_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (sender is not Line line) return;
+        if (line == _hoveredEdgeLine) _hoveredEdgeLine = null;
+        RestoreEdgeStyle(line);
+    }
+
+    private void Edge_LeftClick(object sender, MouseButtonEventArgs e)
+    {
+        if (!_editModeActive || sender is not Line line) return;
+        if (line.Tag is not (int _, int _, int _, int meshEdgeId)) return;
+        if (_vm == null) return;
+        e.Handled = true;          // prevent piece drag
+        _hoveredEdgeLine = null;
+        _vm.ToggleEdge(meshEdgeId);
+        // RebuildAll() is called by ToggleEdge → pieces/edges replaced, hover state reset
+    }
+
+    /// Restores a Line's stroke to its original fold/cut style from current settings.
+    private void RestoreEdgeStyle(Line line)
+    {
+        if (line.Tag is not (int _, int _, int _, int meshEdgeId)) return;
+        var s2d    = _vm?.View2DSettings;
+        bool isFold = _vm?.IsEdgeFold(meshEdgeId) ?? false;
+        line.Stroke          = isFold
+            ? HexBrush(s2d?.FoldLineColor, "#4169e1")
+            : HexBrush(s2d?.CutLineColor,  "#ff0000");
+        line.StrokeThickness = isFold ? (s2d?.FoldLineWidth ?? 0.8) : (s2d?.CutLineWidth ?? 1.0);
+        line.StrokeDashArray = isFold ? ParseDash(s2d?.FoldLineDash ?? "4,2") : null;
     }
 
     // ── affine UV texture mapping ─────────────────────────────────────────────

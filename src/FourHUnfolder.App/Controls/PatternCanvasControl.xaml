@@ -16,6 +16,7 @@
             <Canvas x:Name="RootCanvas"
                     Background="Transparent"
                     MouseMove="Canvas_MouseMove"
+                    MouseLeftButtonDown="Canvas_LeftDown"
                     MouseLeftButtonUp="Canvas_MouseUp"
                     MouseLeave="Canvas_MouseUp"/>
         </ScrollViewer>
@@ -45,6 +46,18 @@
                 <Button Content="✦ Auto-arrange" Click="AutoArrange_Click"
                         Padding="8,3" Margin="2" Cursor="Hand"
                         ToolTip="Pack all pieces onto the paper automatically"/>
+                <Separator Margin="8,0"/>
+                <Separator Margin="8,0"/>
+                <ToggleButton x:Name="RotatePointBtn"
+                              Content="⊙ Rotate Point"
+                              Click="RotatePoint_Click"
+                              Padding="8,3" Margin="2" Cursor="Hand"
+                              ToolTip="Toggle rotate-by-point mode: click a vertex to set pivot, click another to start rotating"/>
+                <ToggleButton x:Name="EditEdgesBtn"
+                              Content="✏ Edit Edges"
+                              Click="EditEdges_Click"
+                              Padding="8,3" Margin="2" Cursor="Hand"
+                              ToolTip="Toggle edge-edit mode: hover to highlight, left-click to attach/detach pieces"/>
                 <Separator Margin="8,0"/>
                 <ToggleButton x:Name="GridToggleBtn"
                               Content="⊞ Grid"

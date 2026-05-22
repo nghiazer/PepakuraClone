@@ -46,6 +46,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private double _pieceGapMm            = 10.0;
     [ObservableProperty] private bool   _snapToGrid            = false;
     [ObservableProperty] private double _defaultPixelsPerMm    = 3.0;
+    [ObservableProperty] private string _edgeHoverColor        = "#ffff9900";
 
     // ── General ───────────────────────────────────────────────────────────────
     [ObservableProperty] private string _displayUnit = "mm";
@@ -112,6 +113,7 @@ public partial class SettingsViewModel : ObservableObject
         PieceGapMm         = s.View2D.PieceGapMm;
         SnapToGrid         = s.View2D.SnapToGrid;
         DefaultPixelsPerMm = s.View2D.DefaultPixelsPerMm;
+        EdgeHoverColor     = s.View2D.EdgeHoverColor;
 
         // General
         DisplayUnit = s.General.DisplayUnit;
@@ -172,7 +174,8 @@ public partial class SettingsViewModel : ObservableObject
             FaceNumberColor    = FaceNumberColor,
             PieceGapMm         = PieceGapMm,
             SnapToGrid         = SnapToGrid,
-            DefaultPixelsPerMm = DefaultPixelsPerMm
+            DefaultPixelsPerMm = DefaultPixelsPerMm,
+            EdgeHoverColor     = EdgeHoverColor
         },
         Print = new()
         {

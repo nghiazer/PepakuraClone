@@ -1,6 +1,6 @@
 ﻿# 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-22 (session 12 — 2D texture fix + review R bugs)  
+> **Last updated:** 2026-05-22 (session 13 — edge-edit & rotate-point modes)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -51,6 +51,8 @@ No circular dependencies. Domain has zero external dependencies.
 - Interactive 2D canvas: drag pieces, rotate ±90°, flip H, auto-arrange
 - Grid toggle (fast-path, no rebuild) + Snap to grid
 - Texture load/replace/remove with live preview (Apply/Cancel)
+- **Edge-Edit mode** (✏ toolbar toggle): hover highlights edges, left-click attach/detach; highlight color configurable in Settings → 2D View
+- **Rotate-by-Point mode** (⊙ toolbar toggle): white dots at all piece vertices; click pivot → click handle → live rotation follows mouse; click anywhere to confirm; Ctrl+Z undoable
 - **2D canvas texture rendering**: per-triangle affine UV mapping (Cramer's rule) — 2D pieces reflect texture in real-time; updates on change/remove
 - **App icon** (`Assets/app.ico`, 6 sizes 16–256px) embedded in exe and window title bar
 - Unfold setup dialog: real-world scale + paper size
@@ -81,6 +83,8 @@ No circular dependencies. Domain has zero external dependencies.
 | 2D texture mapping (affine UV per triangle, DPI-agnostic) | ✅ Session 12 fix |
 | App icon embedded in exe | ✅ Session 11 |
 | Rotate/flip pieces are now undoable (Ctrl+Z) | ✅ Session 12 |
+| Edge-Edit mode (hover highlight + LMB attach/detach) | ✅ Session 13 |
+| Rotate-by-Point mode (pivot + handle → live rotation) | ✅ Session 13 |
 | OBJ invalid vertex refs silently skipped (no crash) | ✅ Session 12 |
 
 ---
@@ -179,6 +183,14 @@ No circular dependencies. Domain has zero external dependencies.
 | BUG-TEX | `BuildTextureBrush` used `Stretch=None` + pixel Viewport → DPI mismatch for 72-DPI images | Changed to `Viewport=(0,0,1,1)` + `Stretch=Fill`; source now UV [0,1] (DPI-agnostic) |
 | TD-R2 | `_edgeOverrides.ToDictionary(k=>k.Key, v=>v.Value)` confusing idiom | Replaced with `new Dictionary<int,EdgeType>(_edgeOverrides)` |
 | TD-S7-7 | `DrawPageAt` parameter used fully-qualified `Domain.Settings.AppSettings.View2DSettings?` | Added `using FourHUnfolder.Domain.Settings;`; shortened to `AppSettings.View2DSettings?` |
+
+### Session 13 tech debt
+
+| ID | Priority | Description | Suggestion |
+|----|----------|-------------|-----------|
+| TD-S13-1 | Low | `_dotRedBrush` in PatternCanvasControl is unfrozen static brush; not thread-safe if ever accessed off-UI thread | Call `.Freeze()` on creation |
+| TD-S13-2 | Low | Vertex dots shown for ALL pieces at once — for complex meshes (500+ faces) this can be hundreds of overlapping dots | Show dots only for the selected piece, or use a spatial threshold |
+| TD-S13-3 | Low | Rotate-by-point phase resets on any RebuildAll (zoom change, settings change) which may feel abrupt | Preserve phase across rebuilds that don't change piece topology |
 
 ### Remaining tech debt (intentionally deferred)
 
