@@ -135,6 +135,9 @@
                 <Button Style="{StaticResource IconBtn}" Content="💾"
                         Command="{Binding ExportSvgCommand}" IsEnabled="{Binding CanExport}"
                         ToolTip="Export SVG pattern"/>
+                <Button Style="{StaticResource IconBtn}" Content="📑"
+                        Command="{Binding ExportPdfCommand}" IsEnabled="{Binding CanExport}"
+                        ToolTip="Export PDF pattern"/>
                 <Separator/>
                 <Button Style="{StaticResource IconBtn}" Content="📁"
                         Command="{Binding SaveProjectCommand}" IsEnabled="{Binding CanExport}"

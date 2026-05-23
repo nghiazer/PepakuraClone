@@ -3,6 +3,7 @@ using FourHUnfolder.App.ViewModels;
 using FourHUnfolder.Application.Interfaces;
 using FourHUnfolder.Application.Services;
 using FourHUnfolder.Infrastructure.Exporters;
+using PdfExporter = FourHUnfolder.Infrastructure.Exporters.PdfExporter;
 using FourHUnfolder.Infrastructure.Loaders;
 using System.Windows;
 
@@ -24,6 +25,7 @@ public partial class App : System.Windows.Application
         // Infrastructure
         sc.AddSingleton<IMeshLoader,  MultiFormatMeshLoader>();
         sc.AddSingleton<IExporter,    SvgExporter>();
+        sc.AddSingleton<PdfExporter>();
 
         // Application
         sc.AddSingleton<MeshService>();

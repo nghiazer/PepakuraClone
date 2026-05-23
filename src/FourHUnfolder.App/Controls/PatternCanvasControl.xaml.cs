@@ -390,6 +390,25 @@ public partial class PatternCanvasControl : UserControl
             }
         }
 
+        // Piece outline: merged boundary polygon for a cleaner silhouette
+        var outlinePts = BuildPieceOutline(piece, _pxPerMm);
+        if (outlinePts != null && outlinePts.Count >= 3)
+        {
+            var outlinePoly = new Polygon
+            {
+                Fill            = Brushes.Transparent,
+                Stroke          = piece.IsSelected
+                    ? new SolidColorBrush(Color.FromArgb(200, 80, 140, 255))
+                    : HexBrush(s2d?.CutLineColor, "#ff0000"),
+                StrokeThickness = piece.IsSelected ? 2.0 : (s2d?.CutLineWidth ?? 1.0) * 1.2,
+                Points          = outlinePts,
+                IsHitTestVisible = false,
+                SnapsToDevicePixels = true
+            };
+            Panel.SetZIndex(outlinePoly, 2);
+            container.Children.Add(outlinePoly);
+        }
+
         // Glue tabs (conditionally shown)
         bool showTabs = s2d?.ShowGlueTabs ?? true;
         if (showTabs)
@@ -1265,4 +1284,64 @@ public partial class PatternCanvasControl : UserControl
 
     // Scale a WPF Point by the current pixels-per-mm factor
     private Point Sc(Point p) => new(p.X * _pxPerMm, p.Y * _pxPerMm);
+
+    // ── piece outline merging ─────────────────────────────────────────────────
+
+    /// Computes the boundary polygon of a piece by collecting all non-fold edges,
+    /// chaining them into an ordered polygon path.  Returns null for degenerate pieces.
+    private static PointCollection? BuildPieceOutline(PieceViewModel piece, double pxPerMm)
+    {
+        if (piece.Faces.Length == 0) return null;
+
+        // Collect all non-fold edges as (p0, p1) pairs in local mm coords
+        var edges = new List<(Point A, Point B)>();
+        var seen  = new HashSet<int>();
+
+        foreach (var fd in piece.Faces)
+        {
+            Point[] verts = [fd.V0, fd.V1, fd.V2];
+            for (int i = 0; i < 3; i++)
+            {
+                if (fd.EdgeIsFold[i]) continue; // internal fold edge — skip
+                int meshId = fd.MeshEdgeIds[i];
+                if (!seen.Add(meshId)) continue; // already added this boundary edge
+                edges.Add((verts[i], verts[(i + 1) % 3]));
+            }
+        }
+
+        if (edges.Count == 0) return null;
+
+        // Chain edges into an ordered polygon
+        var polygon = new List<Point>();
+        var remaining = new List<(Point A, Point B)>(edges);
+
+        polygon.Add(remaining[0].A);
+        polygon.Add(remaining[0].B);
+        remaining.RemoveAt(0);
+
+        const double SnapDist = 0.001; // mm tolerance
+
+        for (int safety = 0; safety < edges.Count && remaining.Count > 0; safety++)
+        {
+            var tail = polygon[^1];
+            bool found = false;
+
+            for (int k = 0; k < remaining.Count; k++)
+            {
+                var (a, b) = remaining[k];
+                if (Near(tail, a, SnapDist)) { polygon.Add(b); remaining.RemoveAt(k); found = true; break; }
+                if (Near(tail, b, SnapDist)) { polygon.Add(a); remaining.RemoveAt(k); found = true; break; }
+            }
+
+            if (!found) break; // open boundary (non-manifold mesh) — stop here
+        }
+
+        return new PointCollection(polygon.Select(p => new Point(p.X * pxPerMm, p.Y * pxPerMm)));
+    }
+
+    private static bool Near(Point a, Point b, double eps)
+    {
+        double dx = a.X - b.X, dy = a.Y - b.Y;
+        return dx * dx + dy * dy < eps * eps;
+    }
 }
