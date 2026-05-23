@@ -168,7 +168,7 @@ public class UnfoldEngine
     {
         var ab    = sv2 - sv1;
         float len = ab.Length();
-        if (len < 1e-6f) return sv1 + new Vector2(da, 0f);
+        if (len < DegenerateEdge) return sv1 + new Vector2(da, 0f);
         float t  = (da * da - db * db + len * len) / (2f * len * len);
         var   ft = sv1 + t * ab;
         float h  = MathF.Sqrt(MathF.Max(0f, da * da - t * t * len * len));

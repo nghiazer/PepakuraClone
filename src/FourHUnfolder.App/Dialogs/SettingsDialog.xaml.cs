@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.ComponentModel;
+using System.Windows;
 using System.Windows.Controls;
 using FourHUnfolder.App.ViewModels;
 using FourHUnfolder.Application.Services;
@@ -8,20 +9,30 @@ namespace FourHUnfolder.App.Dialogs;
 
 public partial class SettingsDialog : Window
 {
-    private readonly SettingsService  _service;
+    private readonly SettingsService   _service;
     private readonly SettingsViewModel _vm;
+    private readonly AppSettings       _originalSettings;
 
     public SettingsDialog(SettingsService service)
     {
-        _service = service;
-        _vm      = new SettingsViewModel();
+        _service          = service;
+        _originalSettings = service.Current;   // capture before any live Apply
+        _vm               = new SettingsViewModel();
         _vm.LoadFrom(service.Current);
 
         InitializeComponent();
         DataContext = _vm;
 
-        // Default to first category
         NavList.SelectedIndex = 0;
+
+        // TD-S14-3: live-preview paper size changes
+        _vm.PropertyChanged += OnVmPropertyChanged;
+    }
+
+    private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SettingsViewModel.DefaultPaperSizeName))
+            _service.Apply(_vm.ToSettings());
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -45,7 +56,11 @@ public partial class SettingsDialog : Window
 
     private void Apply_Click(object sender, RoutedEventArgs e) => Commit();
 
-    private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+    private void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        _service.Apply(_originalSettings);   // revert any live preview changes
+        DialogResult = false;
+    }
 
     private void Reset_Click(object sender, RoutedEventArgs e)
     {

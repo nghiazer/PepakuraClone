@@ -40,6 +40,7 @@ public partial class PatternCanvasControl : UserControl
     // middle-mouse pan
     private bool   _panActive;
     private Point  _panOriginMouse;
+    private Point  _panLastMouse;
     private double _panOriginScrollH, _panOriginScrollV;
 
     // edge-edit mode
@@ -128,9 +129,16 @@ public partial class PatternCanvasControl : UserControl
     // ── full rebuild ─────────────────────────────────────────────────────────
     private void RebuildAll()
     {
-        _hoveredEdgeLine = null;   // old Line elements are discarded; no restore needed
-        ClearVtxDots();            // dots replaced below; unsubscribes handlers first
-        ResetRotatePhase();        // cancel any in-progress rotation on rebuild
+        _hoveredEdgeLine = null;
+
+        // TD-S13-3: save pivot state so we can try to restore it after rebuild
+        int    savedRotGroupId = _rotPiece?.GroupId ?? -1;
+        int    savedPhase      = _rotatePtPhase;
+        double savedPivotLx    = _pivotLx;
+        double savedPivotLy    = _pivotLy;
+
+        ClearVtxDots();
+        ResetRotatePhase();
 
         // TD-4 fix: unsubscribe all tracked PropertyChanged handlers before clearing
         foreach (var (piece, handler) in _pieceHandlers)
@@ -151,7 +159,32 @@ public partial class PatternCanvasControl : UserControl
         SyncAllTransforms();
         UpdateCanvasSize();
 
-        if (_rotatePtActive) ShowVtxDots();
+        if (_rotatePtActive)
+        {
+            ShowVtxDots();
+            // TD-S13-3: restore pivot dot after rebuild if piece still exists
+            if (savedPhase >= 1 && savedRotGroupId >= 0)
+            {
+                var restoredPiece = _vm.Pieces.FirstOrDefault(p => p.GroupId == savedRotGroupId);
+                if (restoredPiece != null)
+                {
+                    var entry = _vtxDots.FirstOrDefault(t =>
+                        t.Piece.GroupId == savedRotGroupId &&
+                        Math.Abs(t.Lx - savedPivotLx) < 0.01 &&
+                        Math.Abs(t.Ly - savedPivotLy) < 0.01);
+                    if (entry != default)
+                    {
+                        _pivotDot = entry.Dot;
+                        _pivotDot.Fill = _dotRedBrush;
+                        _rotPiece  = restoredPiece;
+                        _pivotLx   = savedPivotLx;
+                        _pivotLy   = savedPivotLy;
+                        (_pivotCx, _pivotCy) = VtxCanvasPx(restoredPiece, savedPivotLx, savedPivotLy);
+                        _rotatePtPhase = 1;
+                    }
+                }
+            }
+        }
     }
 
     // ── paper background ─────────────────────────────────────────────────────
@@ -699,7 +732,7 @@ public partial class PatternCanvasControl : UserControl
                         _lassoRect.Width, _lassoRect.Height);
                     if (_vm != null)
                         foreach (var p in _vm.Pieces)
-                            if (PieceBoundsCanvas(p).IntersectsWith(lassoR))
+                            if (AnyVertexInLasso(p, lassoR))
                                 p.IsSelected = true;
                 }
                 _lassoRect = null;
@@ -873,10 +906,10 @@ public partial class PatternCanvasControl : UserControl
     private void Scroller_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.MiddleButton != MouseButtonState.Pressed) return;
-        _panActive         = true;
-        _panOriginMouse    = e.GetPosition(Scroller);
-        _panOriginScrollH  = Scroller.HorizontalOffset;
-        _panOriginScrollV  = Scroller.VerticalOffset;
+        _panActive        = true;
+        _panOriginMouse   = _panLastMouse = e.GetPosition(Scroller);
+        _panOriginScrollH = Scroller.HorizontalOffset;
+        _panOriginScrollV = Scroller.VerticalOffset;
         Scroller.CaptureMouse();
         e.Handled = true;
     }
@@ -885,8 +918,14 @@ public partial class PatternCanvasControl : UserControl
     {
         if (!_panActive) return;
         var pos = e.GetPosition(Scroller);
-        Scroller.ScrollToHorizontalOffset(Math.Max(0, _panOriginScrollH - (pos.X - _panOriginMouse.X)));
-        Scroller.ScrollToVerticalOffset  (Math.Max(0, _panOriginScrollV - (pos.Y - _panOriginMouse.Y)));
+        double vx = pos.X - _panLastMouse.X;
+        double vy = pos.Y - _panLastMouse.Y;
+        // TD-S14-2: velocity-based pan acceleration (1×–2.5× based on mouse speed)
+        double speed = Math.Sqrt(vx * vx + vy * vy);
+        double accel = 1.0 + Math.Min(speed / 10.0, 1.5);
+        _panLastMouse = pos;
+        Scroller.ScrollToHorizontalOffset(Math.Max(0, Scroller.HorizontalOffset - vx * accel));
+        Scroller.ScrollToVerticalOffset  (Math.Max(0, Scroller.VerticalOffset   - vy * accel));
     }
 
     private void Scroller_PreviewMouseUp(object sender, MouseButtonEventArgs e)
@@ -949,7 +988,12 @@ public partial class PatternCanvasControl : UserControl
     private void ShowVtxDots()
     {
         ClearVtxDots();
-        foreach (var piece in _vm?.Pieces ?? [])
+        var pieces = _vm?.Pieces;
+        if (pieces == null) return;
+        // TD-S13-2: show dots for selected pieces only; fall back to all if none selected
+        var targets = pieces.Where(p => p.IsSelected).ToList();
+        if (targets.Count == 0) targets = [.. pieces];
+        foreach (var piece in targets)
         {
             var seen = new HashSet<(int, int)>();
             foreach (var fd in piece.Faces)
@@ -1033,7 +1077,7 @@ public partial class PatternCanvasControl : UserControl
         dot.Fill = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255));
     }
 
-    private static readonly Brush _dotRedBrush = new SolidColorBrush(Color.FromRgb(220, 50, 50));
+    private static readonly Brush _dotRedBrush = HexBrush("#dc3232", "#dc3232"); // frozen (TD-S13-1)
 
     private void VtxDot_Click(object sender, MouseButtonEventArgs e)
     {
@@ -1206,6 +1250,26 @@ public partial class PatternCanvasControl : UserControl
         }
         double minX = cx.Min(), minY = cy.Min();
         return new Rect(minX, minY, cx.Max() - minX, cy.Max() - minY);
+    }
+
+    // TD-S14-1: accurate lasso selection — check if any canvas-space vertex falls within the lasso
+    private bool AnyVertexInLasso(PieceViewModel p, Rect lasso)
+    {
+        if (p.Faces.Length == 0) return false;
+        double rotRad = p.Rotation * Math.PI / 180.0;
+        double cosR = Math.Cos(rotRad), sinR = Math.Sin(rotRad);
+        var seenKeys = new HashSet<(int, int)>();
+        foreach (var fd in p.Faces)
+            foreach (var v in new[] { fd.V0, fd.V1, fd.V2 })
+            {
+                var key = ((int)Math.Round(v.X * 1000), (int)Math.Round(v.Y * 1000));
+                if (!seenKeys.Add(key)) continue;
+                double px = v.X * _pxPerMm, py = v.Y * _pxPerMm;
+                double cx = px * cosR - py * sinR + p.PositionX * _pxPerMm + PaperMarginPx;
+                double cy = px * sinR + py * cosR + p.PositionY * _pxPerMm + PaperMarginPx;
+                if (lasso.Contains(cx, cy)) return true;
+            }
+        return false;
     }
 
     // ── affine UV texture mapping ─────────────────────────────────────────────

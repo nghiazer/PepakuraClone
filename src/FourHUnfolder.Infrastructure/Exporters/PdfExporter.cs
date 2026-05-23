@@ -58,12 +58,12 @@ public class PdfExporter
             if (!p.FoldLineDash.Equals("Solid", StringComparison.OrdinalIgnoreCase))
                 foldPen.DashStyle = XDashStyle.Dash;
 
-            var cutPen      = new XPen(HexToColor(cutHex), p.CutLineWidth);
-            var boundPen    = new XPen(XColors.DimGray, 0.6);
-            var faceBrush   = p.GrayscaleOutput
+            var cutPen   = new XPen(HexToColor(cutHex), p.CutLineWidth);
+            var boundPen = new XPen(XColors.DimGray, 0.6);
+            var faceBrush = p.GrayscaleOutput
                 ? new XSolidBrush(XColor.FromArgb(240, 240, 240))
                 : new XSolidBrush(XColor.FromArgb(255, 253, 231));
-            var tabBrush    = p.GrayscaleOutput
+            var tabBrush = p.GrayscaleOutput
                 ? new XSolidBrush(XColor.FromArgb(200, 200, 200))
                 : new XSolidBrush(XColor.FromArgb(100, 80, 200, 80));
 
@@ -78,12 +78,12 @@ public class PdfExporter
             // ── glue tabs ──────────────────────────────────────────────────
             if (p.IncludeGlueTabs)
             {
+                var tabOutlinePen = new XPen(XColor.FromArgb(46, 125, 50), 0.6);
                 foreach (var tab in result.GlueTabs)
                 {
                     if (!IsTabOnPage(tab, oxMm, oyMm, paperWidthMm, paperHeightMm)) continue;
                     var pts = ToPoints(tab.Vertices, MmToX, MmToY);
-                    var tabPen = new XPen(XColor.FromArgb(46, 125, 50), 0.6);
-                    gfx.DrawPolygon(tabPen, tabBrush, pts, XFillMode.Winding);
+                    gfx.DrawPolygon(tabOutlinePen, tabBrush, pts, XFillMode.Winding);
                 }
             }
 

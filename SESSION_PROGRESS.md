@@ -1,6 +1,6 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-23 (session 18 — TD-N7, SVG tests, PDF export, outline merge, strip-packing)  
+> **Last updated:** 2026-05-23 (session 19 — remaining tech debt TD-S13/S14, review fixes)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -81,16 +81,31 @@ No circular dependencies. Domain has zero external dependencies.
 | `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 6 warnings (NuGet version hint) |
 | `dotnet test` | ✅ 34 / 34 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App mở, không crash |
-| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Session 18 |
+| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Session 19 |
 | PDF export (`PdfExporter`, multi-page) | ✅ Session 18 |
 | Piece outline merging (boundary polygon) | ✅ Session 18 |
 | AffineTransformHelper + 5 unit tests | ✅ Session 18 |
 | TD-N7: `ScaleMmPerUnit` property (was loose field) | ✅ Session 18 |
 | Strip-packing: sort by area + try 90° rotation | ✅ Session 18 |
+| TD-S13/S14 tech debt resolved (all 6 items) | ✅ Session 19 |
+| Review fixes: `DegenerateEdge` constant, tab pen hoisted | ✅ Session 19 |
 
 ---
 
-## Session 18 — Changes
+## Session 19 — Changes
+
+| Item | Detail |
+|------|--------|
+| **TD-S13-1** | `_dotRedBrush` now frozen via `HexBrush("#dc3232","#dc3232")` |
+| **TD-S13-2** | `ShowVtxDots()` shows dots for selected pieces only; falls back to all if none selected |
+| **TD-S13-3** | `RebuildAll()` saves pivot GroupId+position; tries to restore phase=1 after rebuild |
+| **TD-S14-1** | Lasso now uses `AnyVertexInLasso()` — checks actual canvas-space vertex positions |
+| **TD-S14-2** | Middle-mouse pan uses velocity-based acceleration (1×–2.5×) |
+| **TD-S14-3** | SettingsDialog live-applies paper size on `DefaultPaperSizeName` change; Cancel reverts |
+| **Review fix** | `ReconstructApex` uses `DegenerateEdge` constant (was hardcoded `1e-6f`) |
+| **Review fix** | Tab outline pen hoisted outside per-tab loop in `PdfExporter` |
+
+## Session 18 — Changes (kept)
 
 | Item | Detail |
 |------|--------|
@@ -100,23 +115,12 @@ No circular dependencies. Domain has zero external dependencies.
 | **Piece outline** | `BuildPieceOutline()` in canvas — chains non-fold boundary edges into polygon; drawn over fills |
 | **Strip-packing** | `RunAutoArrange` now sorts pieces by area desc (FFD), tries 90° rotation for narrower footprint |
 
-## Session 17 — Changes (last session kept)
-
-| Item | Detail |
-|------|--------|
-| Unsaved changes warning | `_isDirty` + `ConfirmDiscardIfDirty()`; MainWindow.OnClosing |
-| Glue tab angle | `GlueTabSideAngleDeg` (1–90°, default 45°); depth default → 5 mm |
-| Multi-texture | `Face.MaterialId`, `Mesh.MaterialNames/MaterialTexturePaths`; OBJ multi-mat parse; TextureDialog redesigned; per-face `GetCanvas2DTexture()` |
-| Bug fix | MTL filename with spaces; canvas rebuild after texture slot change; bounds guard in RebuildMaterialSlots |
-
 ---
 
 ## Remaining Tech Debt
 
 | ID | Priority | Description |
 |----|----------|-------------|
-| TD-S13-1..3 | Low | `_dotRedBrush` unfrozen; vertex dots on all pieces; rotate-phase resets on rebuild |
-| TD-S14-1..3 | Low | Lasso AABB vs SAT; pan no acceleration; paper-size not live in settings dialog |
 | Performance | Low | O(n²) overlap check → spatial grid for meshes > 2000 faces |
 
 ---
@@ -159,4 +163,4 @@ App/Assets/             app.ico (6 sizes) logo.png
 2. Performance: spatial grid for overlap check (>2000 face meshes)
 3. PDO import (Pepakura native format — reverse-engineered, complex)
 4. Reload 3D model (re-apply unfold when source OBJ changes)
-5. Assembly animation preview
+5. Assembly animation / step-by-step fold guide

@@ -74,5 +74,10 @@
 | TD-R2 | Confusing `_edgeOverrides.ToDictionary(k=>k.Key, v=>v.Value)` | `new Dictionary<int,EdgeType>(_edgeOverrides)` | 12 |
 | SvgExporter.AffineTransform | No unit tests for affine math | Extracted `AffineTransformHelper`; 5 tests added | 18 |
 | TD-S7-1..7 | SVG layout / pages / auto-arrange issues | All fixed sessions 8–12 (see bug table above) | 8–12 |
-| TD-S13-1..3 | Various low-priority canvas issues | Deferred — acceptable as-is | — |
-| TD-S14-1..3 | Lasso accuracy, pan speed, paper-size live update | Deferred — acceptable as-is | — |
+| TD-S13-1 | `_dotRedBrush` unfrozen static SolidColorBrush | Changed to `HexBrush("#dc3232", "#dc3232")` which freezes | 19 |
+| TD-S13-2 | Vertex dots shown for ALL pieces (hundreds on complex mesh) | `ShowVtxDots` now shows only selected pieces; falls back to all if none selected | 19 |
+| TD-S13-3 | Rotate-by-point phase resets on any RebuildAll | `RebuildAll` saves pivot GroupId+position; restores phase=1 after ShowVtxDots if pivot dot found | 19 |
+| TD-S14-1 | Lasso used AABB intersection (inaccurate for rotated pieces) | Replaced with `AnyVertexInLasso()` — checks actual canvas-space vertex positions | 19 |
+| TD-S14-2 | Pan speed 1:1 pixel, no acceleration | Velocity-based acceleration: 1×–2.5× based on mouse speed per frame | 19 |
+| TD-S14-3 | Paper size in Settings applied only on OK | `SettingsDialog` subscribes to `_vm.PropertyChanged`; live-applies on `DefaultPaperSizeName` change; Cancel reverts | 19 |
+| UnfoldEngine `1e-6f` | Magic constant not using `GeometryConstants.DegenerateEdge` | Replaced `1e-6f` with `DegenerateEdge` in `ReconstructApex` | 19 |
