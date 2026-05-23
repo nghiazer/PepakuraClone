@@ -1,6 +1,6 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-23 (session 20 — 3D multi-material texture, edge hit zone, startup note)  
+> **Last updated:** 2026-05-23 (session 21 — fixed 3D texture rendering & slot manager dialog, publish win-x64 exe)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -81,15 +81,23 @@ No circular dependencies. Domain has zero external dependencies.
 | `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 4 warnings (NuGet version hint) |
 | `dotnet test` | ✅ 34 / 34 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App mở, không crash |
-| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Session 20 |
-| 3D multi-material texture (`BuildWpfModel` per-material) | ✅ Session 20 |
+| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Session 21 |
+| 3D multi-material texture (`BuildWpfModel` absolute UV) | ✅ Session 21 |
 | Edge hit zone (8px transparent Line on top) | ✅ Session 20 |
 | TD-S13/S14 tech debt resolved (all 6 items) | ✅ Session 19 |
 | Review fixes: `DegenerateEdge` constant, tab pen hoisted | ✅ Session 19 |
 
 ---
 
-## Session 20 — Changes
+## Session 21 — Changes
+
+| Item | Detail |
+|------|--------|
+| **3D absolute UV** | Modified `BuildWpfModel` to use `BrushMappingMode.Absolute` and a `Viewport` of `0,0,1,1` on `ImageBrush`. This fixes texture warping/distortion by ignoring dynamic bounding boxes of individual materials |
+| **Texture Dialog** | Called `RebuildMaterialSlots` on project load in `RestoreProjectState` to prevent empty slot entries. Explicitly raised `Canvas2DTexture` property changed to update the 2D canvas |
+| **Published EXE** | Rebuilt win-x64 self-contained `4H-Unfolder.exe` containing these fixes |
+
+## Session 20 — Changes (kept)
 
 | Item | Detail |
 |------|--------|

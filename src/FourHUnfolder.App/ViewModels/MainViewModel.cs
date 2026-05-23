@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Numerics;
 using System.Windows;
@@ -124,6 +124,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                          ?? _materialBitmaps.Values.FirstOrDefault(b => b != null);
         _committedTexturePath = MaterialTextureSlots.FirstOrDefault(s => s.HasTexture)?.TexturePath;
         UpdateTextureUI(primaryBmp, _committedTexturePath, isPreview: false);
+        OnPropertyChanged(nameof(Canvas2DTexture)); // Force 2D canvas to rebuild
 
         // Rebuild 3D model with updated per-material textures
         if (_currentMesh != null)
@@ -1083,6 +1084,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _currentMesh = _meshService.LoadFromFile(state.MeshPath);
         _currentMeshPath = state.MeshPath;
         _edgeOverrides.Clear();
+        RebuildMaterialSlots(_currentMesh);
 
         // Restore edge overrides
         foreach (var (id, typeName) in state.EdgeOverrides)
@@ -1292,7 +1294,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _geoFaceIds[geometry] = faceIdList;
 
             Brush fb = (tex != null && uvCoords != null)
-                ? (Brush)new ImageBrush(tex) { Stretch = Stretch.Fill }
+                ? (Brush)new ImageBrush(tex)
+                  {
+                      ViewportUnits = BrushMappingMode.Absolute,
+                      Viewport      = new Rect(0, 0, 1, 1),
+                      TileMode      = TileMode.Tile,
+                      Stretch       = Stretch.Fill
+                  }
                 : ParseBrush(s3d.FaceColor, "#64a0dc");
 
             if (fb is SolidColorBrush scb && s3d.FaceOpacity < 1.0)
