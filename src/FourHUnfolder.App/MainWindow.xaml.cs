@@ -151,10 +151,8 @@ public partial class MainWindow : Window
 
         if (hit == null) return -1;
 
-        // Each face occupies exactly 3 consecutive positions (unshared vertices).
-        // The smallest vertex index of the three gives the face base index.
-        int minVert = Math.Min(hit.VertexIndex1,
-                     Math.Min(hit.VertexIndex2, hit.VertexIndex3));
-        return minVert / 3;
+        // Delegate to ViewModel which tracks the geometry→faceId mapping
+        // (supports both single-geometry and per-material multi-geometry models)
+        return Vm.ResolveHitFaceId(hit.MeshHit, hit.VertexIndex1, hit.VertexIndex2, hit.VertexIndex3);
     }
 }

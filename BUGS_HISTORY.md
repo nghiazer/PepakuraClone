@@ -81,3 +81,6 @@
 | TD-S14-2 | Pan speed 1:1 pixel, no acceleration | Velocity-based acceleration: 1×–2.5× based on mouse speed per frame | 19 |
 | TD-S14-3 | Paper size in Settings applied only on OK | `SettingsDialog` subscribes to `_vm.PropertyChanged`; live-applies on `DefaultPaperSizeName` change; Cancel reverts | 19 |
 | UnfoldEngine `1e-6f` | Magic constant not using `GeometryConstants.DegenerateEdge` | Replaced `1e-6f` with `DegenerateEdge` in `ReconstructApex` | 19 |
+| 3D texture (multi-material) | `BuildWpfModel` used single texture for all faces; multi-material OBJ showed wrong texture in 3D | Faces grouped by `MaterialId`; separate `GeometryModel3D` per material with its own `_materialBitmaps` entry; `_geoFaceIds` dict + `ResolveHitFaceId` preserves 3D pick correctness | 20 |
+| `SetMaterialTexture` 3D blind | Changing slot in TextureDialog updated 2D but not 3D model | Added `MeshModel = BuildWpfModel(...)` call at end of `SetMaterialTexture` | 20 |
+| Edge click too narrow | Edge Lines had 0.6–1.0 px stroke = 0.6–1.0 px hit area; required pixel-precise cursor | Added `EdgeTag` class; visual `Line` is `IsHitTestVisible=false`; second transparent `StrokeThickness=8` hit-zone Line on top carries all events | 20 |

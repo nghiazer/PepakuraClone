@@ -20,6 +20,12 @@ namespace FourHUnfolder.App.Controls;
 /// </summary>
 public partial class PatternCanvasControl : UserControl
 {
+    // Tag placed on edge hit-zone lines; VisualLine points to the companion rendering Line
+    private sealed class EdgeTag
+    {
+        public int  PieceId, FaceId, EdgeIdx, MeshEdgeId;
+        public Line VisualLine = null!;
+    }
     // ── constants ────────────────────────────────────────────────────────────
     private const double PaperMarginPx = 30.0;
     private const string GridTag       = "GRID";
@@ -401,25 +407,43 @@ public partial class PatternCanvasControl : UserControl
                 double thickness = isBoundary ? 0.6 : (isFold ? foldW : cutW);
                 var    dash      = (!isBoundary && isFold) ? foldDash : null;
 
-                var line = new Line
+                var et = new EdgeTag
+                {
+                    PieceId = piece.GroupId, FaceId = fd.FaceId,
+                    EdgeIdx = i, MeshEdgeId = meshEdgeId
+                };
+
+                // Visual line — rendering only, no hit test
+                var visLine = new Line
                 {
                     X1 = verts[i].X,           Y1 = verts[i].Y,
                     X2 = verts[(i + 1) % 3].X, Y2 = verts[(i + 1) % 3].Y,
-                    Stroke          = stroke,
-                    StrokeThickness = thickness,
-                    StrokeDashArray = dash,
+                    Stroke           = stroke,
+                    StrokeThickness  = thickness,
+                    StrokeDashArray  = dash,
+                    IsHitTestVisible = false,
+                    Tag              = et
+                };
+                et.VisualLine = visLine;
+                container.Children.Add(visLine);
+
+                // Transparent hit-zone line on top — wider area so edges are easy to click
+                var hitLine = new Line
+                {
+                    X1 = visLine.X1, Y1 = visLine.Y1, X2 = visLine.X2, Y2 = visLine.Y2,
+                    Stroke          = Brushes.Transparent,
+                    StrokeThickness = 8,
                     Cursor          = isBoundary ? Cursors.Arrow : Cursors.Hand,
-                    Tag             = (PieceId: piece.GroupId, FaceId: fd.FaceId,
-                                       EdgeIdx: i, MeshEdgeId: meshEdgeId)
+                    Tag             = et
                 };
                 if (!isBoundary)
                 {
-                    line.MouseRightButtonDown += Edge_RightClick;
-                    line.MouseEnter           += Edge_MouseEnter;
-                    line.MouseLeave           += Edge_MouseLeave;
-                    line.MouseLeftButtonDown  += Edge_LeftClick;
+                    hitLine.MouseRightButtonDown += Edge_RightClick;
+                    hitLine.MouseEnter           += Edge_MouseEnter;
+                    hitLine.MouseLeave           += Edge_MouseLeave;
+                    hitLine.MouseLeftButtonDown  += Edge_LeftClick;
                 }
-                container.Children.Add(line);
+                container.Children.Add(hitLine);
             }
         }
 
@@ -781,23 +805,22 @@ public partial class PatternCanvasControl : UserControl
     // ── edge right-click context menu ────────────────────────────────────────
     private void Edge_RightClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Line line) return;
-        if (line.Tag is not (int pieceId, int faceId, int edgeIdx, int meshEdgeId)) return;
+        if (sender is not Line line || line.Tag is not EdgeTag et) return;
         if (_vm == null) return;
 
-        var isFold = _vm.IsEdgeFold(meshEdgeId);
+        var isFold = _vm.IsEdgeFold(et.MeshEdgeId);
         var menu   = new ContextMenu();
 
         if (isFold)
         {
             var split = new MenuItem { Header = "✂  Split piece here (Fold → Cut)" };
-            split.Click += (_, _) => _vm.ToggleEdge(meshEdgeId);
+            split.Click += (_, _) => _vm.ToggleEdge(et.MeshEdgeId);
             menu.Items.Add(split);
         }
         else
         {
             var join = new MenuItem { Header = "🔗  Join pieces here (Cut → Fold)" };
-            join.Click += (_, _) => _vm.ToggleEdge(meshEdgeId);
+            join.Click += (_, _) => _vm.ToggleEdge(et.MeshEdgeId);
             menu.Items.Add(join);
         }
 
@@ -1150,31 +1173,34 @@ public partial class PatternCanvasControl : UserControl
 
     private void Edge_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (!_editModeActive || sender is not Line line) return;
-        _hoveredEdgeLine = line;
-        var hoverBrush = HexBrush(_vm?.View2DSettings?.EdgeHoverColor, "#ffff9900");
-        line.Stroke          = hoverBrush;
-        line.StrokeThickness = 3.5;
-        line.StrokeDashArray = null;
+        if (!_editModeActive || sender is not Line hitLine) return;
+        if (hitLine.Tag is not EdgeTag et) return;
+        var visLine = et.VisualLine;
+        _hoveredEdgeLine      = visLine;
+        var hoverBrush        = HexBrush(_vm?.View2DSettings?.EdgeHoverColor, "#ffff9900");
+        visLine.Stroke          = hoverBrush;
+        visLine.StrokeThickness = 3.5;
+        visLine.StrokeDashArray = null;
     }
 
     private void Edge_MouseLeave(object sender, MouseEventArgs e)
     {
-        if (sender is not Line line) return;
-        if (line == _hoveredEdgeLine) _hoveredEdgeLine = null;
-        RestoreEdgeStyle(line);
+        if (sender is not Line hitLine) return;
+        if (hitLine.Tag is not EdgeTag et) return;
+        var visLine = et.VisualLine;
+        if (visLine == _hoveredEdgeLine) _hoveredEdgeLine = null;
+        RestoreEdgeStyle(visLine);
     }
 
     private void Edge_LeftClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Line line) return;
-        if (line.Tag is not (int pieceId, int faceId, int edgeIdx, int meshEdgeId)) return;
+        if (sender is not Line line || line.Tag is not EdgeTag et) return;
         if (_vm == null) return;
 
         // F4: double-click on any edge → snap piece so that edge aligns to H or V
         if (e.ClickCount == 2 && !_editModeActive)
         {
-            AutoAlignEdge(pieceId, faceId, edgeIdx);
+            AutoAlignEdge(et.PieceId, et.FaceId, et.EdgeIdx);
             e.Handled = true;
             return;
         }
@@ -1182,7 +1208,7 @@ public partial class PatternCanvasControl : UserControl
         if (!_editModeActive) return;
         e.Handled = true;
         _hoveredEdgeLine = null;
-        _vm.ToggleEdge(meshEdgeId);
+        _vm.ToggleEdge(et.MeshEdgeId);
     }
 
     private void AutoAlignEdge(int pieceId, int faceId, int edgeIdx)
@@ -1213,17 +1239,17 @@ public partial class PatternCanvasControl : UserControl
         _vm.PushDragUndo(snap);
     }
 
-    /// Restores a Line's stroke to its original fold/cut style from current settings.
-    private void RestoreEdgeStyle(Line line)
+    /// Restores a visual edge Line's stroke to its original fold/cut style from current settings.
+    private void RestoreEdgeStyle(Line visLine)
     {
-        if (line.Tag is not (int _, int _, int _, int meshEdgeId)) return;
-        var s2d    = _vm?.View2DSettings;
-        bool isFold = _vm?.IsEdgeFold(meshEdgeId) ?? false;
-        line.Stroke          = isFold
+        if (visLine.Tag is not EdgeTag et) return;
+        var s2d     = _vm?.View2DSettings;
+        bool isFold = _vm?.IsEdgeFold(et.MeshEdgeId) ?? false;
+        visLine.Stroke          = isFold
             ? HexBrush(s2d?.FoldLineColor, "#4169e1")
             : HexBrush(s2d?.CutLineColor,  "#ff0000");
-        line.StrokeThickness = isFold ? (s2d?.FoldLineWidth ?? 0.8) : (s2d?.CutLineWidth ?? 1.0);
-        line.StrokeDashArray = isFold ? ParseDash(s2d?.FoldLineDash ?? "4,2") : null;
+        visLine.StrokeThickness = isFold ? (s2d?.FoldLineWidth ?? 0.8) : (s2d?.CutLineWidth ?? 1.0);
+        visLine.StrokeDashArray = isFold ? ParseDash(s2d?.FoldLineDash ?? "4,2") : null;
     }
 
     // ── lasso helper ─────────────────────────────────────────────────────────

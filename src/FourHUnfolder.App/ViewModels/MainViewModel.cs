@@ -64,6 +64,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private int?          _cachedOverlayGroupId;
     private Model3DGroup? _cachedOverlayModel;
 
+    // Multi-material 3D hit-test map: geometry → list of global face IDs in draw order
+    private readonly Dictionary<MeshGeometry3D, List<int>> _geoFaceIds = new();
+
     // TD-9: undo/redo — snapshots of (_edgeOverrides, piece layouts)
     private readonly record struct EditSnapshot(
         IReadOnlyDictionary<int, EdgeType> EdgeOverrides,
@@ -121,6 +124,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
                          ?? _materialBitmaps.Values.FirstOrDefault(b => b != null);
         _committedTexturePath = MaterialTextureSlots.FirstOrDefault(s => s.HasTexture)?.TexturePath;
         UpdateTextureUI(primaryBmp, _committedTexturePath, isPreview: false);
+
+        // Rebuild 3D model with updated per-material textures
+        if (_currentMesh != null)
+            MeshModel = BuildWpfModel(_currentMesh, primaryBmp, _materialBitmaps);
     }
 
     private int GetPrimaryMaterialId() =>
@@ -246,7 +253,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             _lastView3DHash = newHash;
             var tex = LoadBitmapImage(_committedTexturePath);
-            MeshModel = BuildWpfModel(_currentMesh, tex);
+            MeshModel = BuildWpfModel(_currentMesh, tex, _materialBitmaps);
         }
     }
 
@@ -390,7 +397,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             var tex    = LoadBitmapImage(_committedTexturePath);
             _lastView3DHash = View3DHash(S.View3D);   // sync hash so OnSettingsChanged skips rebuild
-            MeshModel  = BuildWpfModel(_currentMesh, tex);
+            MeshModel  = BuildWpfModel(_currentMesh, tex, _materialBitmaps);
             CanUnfold  = true;
             CanExport  = false;
             IsUnfolded = false;
@@ -1111,7 +1118,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         // Restore texture
         _committedTexturePath = state.TexturePath;
         var tex = LoadBitmapImage(_committedTexturePath);
-        MeshModel  = BuildWpfModel(_currentMesh, tex);
+        MeshModel  = BuildWpfModel(_currentMesh, tex, _materialBitmaps);
         CanUnfold  = true;
         CanExport  = true;
         IsUnfolded = true;
@@ -1220,66 +1227,100 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     // ── 3-D model builder ─────────────────────────────────────────────────────
 
-    private Model3DGroup BuildWpfModel(Mesh mesh, BitmapImage? texture)
+    /// <param name="singleTexture">Fallback texture applied to all materials that have no per-material entry.</param>
+    /// <param name="perMaterial">Optional per-material textures (materialId → bitmap). Null = use singleTexture for all.</param>
+    private Model3DGroup BuildWpfModel(Mesh mesh, BitmapImage? singleTexture,
+        IReadOnlyDictionary<int, BitmapImage?>? perMaterial = null)
     {
-        var positions = new Point3DCollection(mesh.Faces.Count * 3);
-        var indices   = new Int32Collection(mesh.Faces.Count * 3);
-        var normals   = new Vector3DCollection(mesh.Faces.Count * 3);
+        _geoFaceIds.Clear();
+        var group = new Model3DGroup();
+        var s3d   = S.View3D;
 
-        bool useUV = texture != null && mesh.HasUVs;
-        PointCollection? uvCoords = useUV ? new(mesh.Faces.Count * 3) : null;
-
-        foreach (var face in mesh.Faces)
+        // Group faces by material so each material gets its own texture and geometry
+        foreach (var matGroup in mesh.Faces.GroupBy(f => f.MaterialId))
         {
-            int baseIdx = positions.Count;
-            var va = mesh.Vertices[face.A].Position;
-            var vb = mesh.Vertices[face.B].Position;
-            var vc = mesh.Vertices[face.C].Position;
+            var faces = matGroup.ToList();
+            int matId = matGroup.Key;
 
-            positions.Add(new Point3D(va.X, va.Y, va.Z));
-            positions.Add(new Point3D(vb.X, vb.Y, vb.Z));
-            positions.Add(new Point3D(vc.X, vc.Y, vc.Z));
-            indices.Add(baseIdx); indices.Add(baseIdx + 1); indices.Add(baseIdx + 2);
+            // Resolve texture: per-material first, then single fallback
+            BitmapImage? tex = null;
+            perMaterial?.TryGetValue(matId, out tex);
+            tex ??= singleTexture;
 
-            var ab = new Vector3D(vb.X - va.X, vb.Y - va.Y, vb.Z - va.Z);
-            var ac = new Vector3D(vc.X - va.X, vc.Y - va.Y, vc.Z - va.Z);
-            var n  = Vector3D.CrossProduct(ab, ac); n.Normalize();
-            normals.Add(n); normals.Add(n); normals.Add(n);
+            var positions = new Point3DCollection(faces.Count * 3);
+            var indices   = new Int32Collection(faces.Count * 3);
+            var normals   = new Vector3DCollection(faces.Count * 3);
+            bool useUV    = tex != null && mesh.HasUVs;
+            PointCollection? uvCoords = useUV ? new(faces.Count * 3) : null;
+            var faceIdList = new List<int>(faces.Count);
 
-            if (uvCoords != null)
+            foreach (var face in faces)
             {
-                var (ua, ub, uc) = mesh.FaceUVs[face.Id];
-                uvCoords.Add(ToWpfUV(mesh, ua));
-                uvCoords.Add(ToWpfUV(mesh, ub));
-                uvCoords.Add(ToWpfUV(mesh, uc));
+                int baseIdx = positions.Count;
+                faceIdList.Add(face.Id);
+
+                var va = mesh.Vertices[face.A].Position;
+                var vb = mesh.Vertices[face.B].Position;
+                var vc = mesh.Vertices[face.C].Position;
+
+                positions.Add(new Point3D(va.X, va.Y, va.Z));
+                positions.Add(new Point3D(vb.X, vb.Y, vb.Z));
+                positions.Add(new Point3D(vc.X, vc.Y, vc.Z));
+                indices.Add(baseIdx); indices.Add(baseIdx + 1); indices.Add(baseIdx + 2);
+
+                var ab = new Vector3D(vb.X - va.X, vb.Y - va.Y, vb.Z - va.Z);
+                var ac = new Vector3D(vc.X - va.X, vc.Y - va.Y, vc.Z - va.Z);
+                var n  = Vector3D.CrossProduct(ab, ac); n.Normalize();
+                normals.Add(n); normals.Add(n); normals.Add(n);
+
+                if (uvCoords != null)
+                {
+                    var (ua, ub, uc) = mesh.FaceUVs[face.Id];
+                    uvCoords.Add(ToWpfUV(mesh, ua));
+                    uvCoords.Add(ToWpfUV(mesh, ub));
+                    uvCoords.Add(ToWpfUV(mesh, uc));
+                }
             }
+
+            var geometry = new MeshGeometry3D
+            {
+                Positions = positions, TriangleIndices = indices, Normals = normals
+            };
+            if (uvCoords != null) geometry.TextureCoordinates = uvCoords;
+
+            // Track face IDs for this geometry so hit-testing can map back to global face ID
+            _geoFaceIds[geometry] = faceIdList;
+
+            Brush fb = (tex != null && uvCoords != null)
+                ? (Brush)new ImageBrush(tex) { Stretch = Stretch.Fill }
+                : ParseBrush(s3d.FaceColor, "#64a0dc");
+
+            if (fb is SolidColorBrush scb && s3d.FaceOpacity < 1.0)
+            {
+                var c = scb.Color;
+                fb = new SolidColorBrush(Color.FromArgb((byte)(s3d.FaceOpacity * 255), c.R, c.G, c.B));
+            }
+
+            var mat     = new DiffuseMaterial(fb);
+            var backMat = new DiffuseMaterial(ParseBrush(s3d.BackFaceColor, "#3c6496"));
+            var model   = new GeometryModel3D(geometry, mat) { BackMaterial = backMat };
+            group.Children.Add(model);
         }
 
-        var geometry = new MeshGeometry3D
-        {
-            Positions = positions, TriangleIndices = indices, Normals = normals
-        };
-        if (uvCoords != null) geometry.TextureCoordinates = uvCoords;
-
-        var s3d = S.View3D;
-        Brush fb = (texture != null && uvCoords != null)
-            ? (Brush)new ImageBrush(texture) { Stretch = Stretch.Fill }
-            : ParseBrush(s3d.FaceColor, "#64a0dc");
-
-        // Apply face opacity
-        if (fb is SolidColorBrush scb && s3d.FaceOpacity < 1.0)
-        {
-            var c = scb.Color;
-            fb = new SolidColorBrush(Color.FromArgb(
-                (byte)(s3d.FaceOpacity * 255), c.R, c.G, c.B));
-        }
-
-        var mat     = new DiffuseMaterial(fb);
-        var backMat = new DiffuseMaterial(ParseBrush(s3d.BackFaceColor, "#3c6496"));
-        var model   = new GeometryModel3D(geometry, mat) { BackMaterial = backMat };
-        var group   = new Model3DGroup();
-        group.Children.Add(model);
         return group;
+    }
+
+    /// Resolves a 3D hit-test result to a global face ID.
+    /// Handles both single-geometry (old) and per-material multi-geometry models.
+    public int ResolveHitFaceId(object? geoObj, int v1, int v2, int v3)
+    {
+        int minVert = Math.Min(v1, Math.Min(v2, v3));
+        if (geoObj is MeshGeometry3D geo && _geoFaceIds.TryGetValue(geo, out var faceIds))
+        {
+            int localIdx = minVert / 3;
+            return localIdx < faceIds.Count ? faceIds[localIdx] : -1;
+        }
+        return minVert / 3;  // fallback for single-geometry (no per-material)
     }
 
     private static System.Windows.Point ToWpfUV(Mesh mesh, int idx)

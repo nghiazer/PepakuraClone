@@ -1,6 +1,6 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-23 (session 19 — remaining tech debt TD-S13/S14, review fixes)  
+> **Last updated:** 2026-05-23 (session 20 — 3D multi-material texture, edge hit zone, startup note)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -78,21 +78,28 @@ No circular dependencies. Domain has zero external dependencies.
 
 | Item | Result |
 |------|--------|
-| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 6 warnings (NuGet version hint) |
+| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 4 warnings (NuGet version hint) |
 | `dotnet test` | ✅ 34 / 34 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App mở, không crash |
-| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Session 19 |
-| PDF export (`PdfExporter`, multi-page) | ✅ Session 18 |
-| Piece outline merging (boundary polygon) | ✅ Session 18 |
-| AffineTransformHelper + 5 unit tests | ✅ Session 18 |
-| TD-N7: `ScaleMmPerUnit` property (was loose field) | ✅ Session 18 |
-| Strip-packing: sort by area + try 90° rotation | ✅ Session 18 |
+| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Session 20 |
+| 3D multi-material texture (`BuildWpfModel` per-material) | ✅ Session 20 |
+| Edge hit zone (8px transparent Line on top) | ✅ Session 20 |
 | TD-S13/S14 tech debt resolved (all 6 items) | ✅ Session 19 |
 | Review fixes: `DegenerateEdge` constant, tab pen hoisted | ✅ Session 19 |
 
 ---
 
-## Session 19 — Changes
+## Session 20 — Changes
+
+| Item | Detail |
+|------|--------|
+| **3D multi-material** | `BuildWpfModel` now groups faces by `MaterialId`; creates one `GeometryModel3D` per material with its own texture from `_materialBitmaps`; single-texture fallback for unmatched materials |
+| **3D hit-test fixed** | Added `_geoFaceIds` dict (geometry → faceId list); `ResolveHitFaceId` maps local vertex index to global face ID; `MainWindow.HitTestFace` uses it |
+| **SetMaterialTexture** | Now rebuilds `MeshModel` with per-material bitmaps after TextureDialog changes any slot |
+| **Edge hit zone** | Added `EdgeTag` class; each edge now has a thin visual `Line` (`IsHitTestVisible=false`) + a transparent `StrokeThickness=8` hit-zone Line on top; all event handlers updated |
+| **Startup note** | Startup latency is HelixToolkit 3D renderer + .NET JIT cold start — use published Release build for best startup time; no code regression |
+
+## Session 19 — Changes (kept)
 
 | Item | Detail |
 |------|--------|
@@ -104,16 +111,6 @@ No circular dependencies. Domain has zero external dependencies.
 | **TD-S14-3** | SettingsDialog live-applies paper size on `DefaultPaperSizeName` change; Cancel reverts |
 | **Review fix** | `ReconstructApex` uses `DegenerateEdge` constant (was hardcoded `1e-6f`) |
 | **Review fix** | Tab outline pen hoisted outside per-tab loop in `PdfExporter` |
-
-## Session 18 — Changes (kept)
-
-| Item | Detail |
-|------|--------|
-| **TD-N7 fixed** | `_currentScaleMmPerUnit` → `private double ScaleMmPerUnit { get; set; }` |
-| **SVG affine tests** | Extracted `AffineTransformHelper` (public static); 5 unit tests in `SvgExporterTests.cs` |
-| **PDF export** | `PdfExporter` + `ExportPdfCommand`; 📑 toolbar button; PdfSharp.Standard 1.51 |
-| **Piece outline** | `BuildPieceOutline()` in canvas — chains non-fold boundary edges into polygon; drawn over fills |
-| **Strip-packing** | `RunAutoArrange` now sorts pieces by area desc (FFD), tries 90° rotation for narrower footprint |
 
 ---
 
