@@ -405,6 +405,69 @@ public partial class PatternCanvasControl : UserControl
                 container.Children.Add(tabPoly);
             }
         }
+
+        // Edge ID labels + glue arrows on cut edges
+        if (s2d?.ShowEdgeIds == true)
+        {
+            var idBrush  = HexBrush(s2d?.EdgeIdColor, "#cc333333");
+            double fontSize = Math.Max(5, _pxPerMm * 2.2);
+
+            // Piece centroid in px for outward-arrow direction
+            double allCx = piece.Faces.SelectMany(f => new[] { f.V0.X, f.V1.X, f.V2.X }).Average() * _pxPerMm;
+            double allCy = piece.Faces.SelectMany(f => new[] { f.V0.Y, f.V1.Y, f.V2.Y }).Average() * _pxPerMm;
+
+            var drawnPairIds = new HashSet<int>();
+            foreach (var fd in piece.Faces)
+            {
+                Point[] verts = [Sc(fd.V0), Sc(fd.V1), Sc(fd.V2)];
+                for (int i = 0; i < 3; i++)
+                {
+                    int pairId = fd.EdgePairIds[i];
+                    if (pairId == 0 || !drawnPairIds.Add(fd.MeshEdgeIds[i])) continue;
+
+                    var p0 = verts[i];
+                    var p1 = verts[(i + 1) % 3];
+                    double mx = (p0.X + p1.X) / 2;
+                    double my = (p0.Y + p1.Y) / 2;
+
+                    // Outward direction (away from centroid)
+                    double nx = mx - allCx;
+                    double ny = my - allCy;
+                    double nLen = Math.Sqrt(nx * nx + ny * ny);
+                    if (nLen > 0.001) { nx /= nLen; ny /= nLen; }
+
+                    // Small arrow polygon pointing outward
+                    double al = Math.Max(4, _pxPerMm * 1.5);
+                    var ex = p1.X - p0.X; var ey = p1.Y - p0.Y;
+                    double eLen = Math.Sqrt(ex * ex + ey * ey);
+                    if (eLen > 0.001) { ex /= eLen; ey /= eLen; }
+                    var arrow = new Polygon
+                    {
+                        Fill   = idBrush,
+                        Points = new PointCollection([
+                            new Point(mx + nx * al * 1.8,        my + ny * al * 1.8),
+                            new Point(mx - ex * al * 0.6 + nx * al * 0.4, my - ey * al * 0.6 + ny * al * 0.4),
+                            new Point(mx + ex * al * 0.6 + nx * al * 0.4, my + ey * al * 0.6 + ny * al * 0.4)
+                        ]),
+                        IsHitTestVisible = false
+                    };
+                    container.Children.Add(arrow);
+
+                    // Number label
+                    var lbl = new TextBlock
+                    {
+                        Text             = pairId.ToString(),
+                        FontSize         = fontSize,
+                        FontWeight       = FontWeights.Bold,
+                        Foreground       = idBrush,
+                        IsHitTestVisible = false
+                    };
+                    Canvas.SetLeft(lbl, mx + nx * (al * 2.2) - fontSize * 0.4);
+                    Canvas.SetTop (lbl, my + ny * (al * 2.2) - fontSize * 0.55);
+                    container.Children.Add(lbl);
+                }
+            }
+        }
     }
 
     // ── transform sync ───────────────────────────────────────────────────────
@@ -692,6 +755,73 @@ public partial class PatternCanvasControl : UserControl
     private void RotateCW_Click (object s, RoutedEventArgs e) => RotateSelected(+90);
     private void RotateCCW_Click(object s, RoutedEventArgs e) => RotateSelected(-90);
 
+    // F5: Parts alignment
+    private void AlignLeft_Click   (object s, RoutedEventArgs e) => AlignSelected(AlignMode.Left);
+    private void AlignRight_Click  (object s, RoutedEventArgs e) => AlignSelected(AlignMode.Right);
+    private void AlignTop_Click    (object s, RoutedEventArgs e) => AlignSelected(AlignMode.Top);
+    private void AlignBottom_Click (object s, RoutedEventArgs e) => AlignSelected(AlignMode.Bottom);
+    private void AlignCenterH_Click(object s, RoutedEventArgs e) => AlignSelected(AlignMode.CenterH);
+    private void AlignCenterV_Click(object s, RoutedEventArgs e) => AlignSelected(AlignMode.CenterV);
+
+    private enum AlignMode { Left, Right, Top, Bottom, CenterH, CenterV }
+
+    private void AlignSelected(AlignMode mode)
+    {
+        if (_vm == null) return;
+        var sel = _vm.Pieces.Where(p => p.IsSelected).ToList();
+        if (sel.Count < 2) return;
+
+        var pre = _vm.Pieces.ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
+
+        // Compute each piece's AABB in canvas mm coords
+        static (double minX, double minY, double maxX, double maxY) PieceAabb(PieceViewModel piece)
+        {
+            double rotRad = piece.Rotation * Math.PI / 180.0;
+            double cosR = Math.Cos(rotRad), sinR = Math.Sin(rotRad);
+            var pts = piece.Faces.SelectMany(f => new[] { f.V0, f.V1, f.V2 });
+            double minX = double.MaxValue, minY = double.MaxValue;
+            double maxX = double.MinValue, maxY = double.MinValue;
+            foreach (var pt in pts)
+            {
+                double rx = pt.X * cosR - pt.Y * sinR + piece.PositionX;
+                double ry = pt.X * sinR + pt.Y * cosR + piece.PositionY;
+                if (rx < minX) minX = rx; if (rx > maxX) maxX = rx;
+                if (ry < minY) minY = ry; if (ry > maxY) maxY = ry;
+            }
+            return (minX, minY, maxX, maxY);
+        }
+
+        var boxes = sel.Select(p => (piece: p, aabb: PieceAabb(p))).ToList();
+        double refL = boxes.Min(b => b.aabb.minX);
+        double refR = boxes.Max(b => b.aabb.maxX);
+        double refT = boxes.Min(b => b.aabb.minY);
+        double refB = boxes.Max(b => b.aabb.maxY);
+        double refCH = (refL + refR) / 2;
+        double refCV = (refT + refB) / 2;
+
+        foreach (var (piece, aabb) in boxes)
+        {
+            double dx = mode switch
+            {
+                AlignMode.Left    => refL   - aabb.minX,
+                AlignMode.Right   => refR   - aabb.maxX,
+                AlignMode.CenterH => refCH  - (aabb.minX + aabb.maxX) / 2,
+                _                 => 0
+            };
+            double dy = mode switch
+            {
+                AlignMode.Top     => refT   - aabb.minY,
+                AlignMode.Bottom  => refB   - aabb.maxY,
+                AlignMode.CenterV => refCV  - (aabb.minY + aabb.maxY) / 2,
+                _                 => 0
+            };
+            piece.PositionX += dx;
+            piece.PositionY += dy;
+        }
+
+        _vm.PushDragUndo(pre);
+    }
+
     private void RotateSelected(double delta)
     {
         if (_vm == null) return;
@@ -972,13 +1102,50 @@ public partial class PatternCanvasControl : UserControl
 
     private void Edge_LeftClick(object sender, MouseButtonEventArgs e)
     {
-        if (!_editModeActive || sender is not Line line) return;
-        if (line.Tag is not (int _, int _, int _, int meshEdgeId)) return;
+        if (sender is not Line line) return;
+        if (line.Tag is not (int pieceId, int faceId, int edgeIdx, int meshEdgeId)) return;
         if (_vm == null) return;
-        e.Handled = true;          // prevent piece drag
+
+        // F4: double-click on any edge → snap piece so that edge aligns to H or V
+        if (e.ClickCount == 2 && !_editModeActive)
+        {
+            AutoAlignEdge(pieceId, faceId, edgeIdx);
+            e.Handled = true;
+            return;
+        }
+
+        if (!_editModeActive) return;
+        e.Handled = true;
         _hoveredEdgeLine = null;
         _vm.ToggleEdge(meshEdgeId);
-        // RebuildAll() is called by ToggleEdge → pieces/edges replaced, hover state reset
+    }
+
+    private void AutoAlignEdge(int pieceId, int faceId, int edgeIdx)
+    {
+        var piece = _vm?.Pieces.FirstOrDefault(p => p.GroupId == pieceId);
+        if (piece == null) return;
+
+        var fd = piece.Faces.FirstOrDefault(f => f.FaceId == faceId);
+        if (fd == null) return;
+
+        // Edge vector in local mm coords
+        Point[] localPts = [fd.V0, fd.V1, fd.V2];
+        var     lp0      = localPts[edgeIdx];
+        var     lp1      = localPts[(edgeIdx + 1) % 3];
+        double  dx       = lp1.X - lp0.X;
+        double  dy       = lp1.Y - lp0.Y;
+
+        // Current edge angle in canvas space (piece rotation already applied)
+        double edgeAngle = Math.Atan2(dy, dx) * 180.0 / Math.PI + piece.Rotation;
+
+        // Snap to nearest multiple of 90°
+        double snapped = Math.Round(edgeAngle / 90.0) * 90.0;
+        double delta   = snapped - edgeAngle;
+
+        // Capture pre-snap for undo
+        var snap = _vm!.Pieces.ToDictionary(p => p.GroupId, p => (p.PositionX, p.PositionY, p.Rotation));
+        piece.Rotation = (piece.Rotation + delta + 360) % 360;
+        _vm.PushDragUndo(snap);
     }
 
     /// Restores a Line's stroke to its original fold/cut style from current settings.

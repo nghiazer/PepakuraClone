@@ -46,10 +46,14 @@ public partial class PieceViewModel : ObservableObject
         /// UV texture coordinates for V0, V1, V2.  Null when the mesh has no UV data.
         public Vector2[]? UVCoords { get; }
 
+        /// 1-based pair ID for each cut edge; 0 for fold/boundary edges.
+        public int[] EdgePairIds { get; }
+
         public FaceData(int faceId, int[] meshEdgeIds,
                         Point v0, Point v1, Point v2,
                         bool[] edgeIsFold, bool[]? edgeIsBoundary = null,
-                        Vector2[]? uvCoords = null)
+                        Vector2[]? uvCoords = null,
+                        int[]? edgePairIds = null)
         {
             FaceId         = faceId;
             MeshEdgeIds    = meshEdgeIds;
@@ -57,6 +61,7 @@ public partial class PieceViewModel : ObservableObject
             EdgeIsFold     = edgeIsFold;
             EdgeIsBoundary = edgeIsBoundary ?? [false, false, false];
             UVCoords       = uvCoords;
+            EdgePairIds    = edgePairIds ?? [0, 0, 0];
         }
     }
 
@@ -97,13 +102,17 @@ public partial class PieceViewModel : ObservableObject
 
         var faceDatas = uFaces.Select(uf =>
         {
-            var mf = mesh.Faces[uf.FaceId];
+            var mf     = mesh.Faces[uf.FaceId];
+            var eIds   = mf.EdgeIds.ToArray();
+            var pairIds = new int[3];
+            for (int i = 0; i < 3; i++)
+                pairIds[i] = unfoldResult.CutEdgePairIds.GetValueOrDefault(eIds[i]);
             return new FaceData(
                 uf.FaceId,
-                mf.EdgeIds.ToArray(),
+                eIds,
                 ToLocal(uf.V0), ToLocal(uf.V1), ToLocal(uf.V2),
                 uf.EdgeIsFold, uf.EdgeIsBoundary,
-                uf.UVCoords);
+                uf.UVCoords, pairIds);
         }).ToArray();
 
         // Glue tabs belonging to faces in this piece

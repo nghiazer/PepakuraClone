@@ -22,7 +22,7 @@ public partial class App : System.Windows.Application
         sc.AddSingleton<SettingsService>();
 
         // Infrastructure
-        sc.AddSingleton<IMeshLoader,  ObjMeshLoader>();
+        sc.AddSingleton<IMeshLoader,  MultiFormatMeshLoader>();
         sc.AddSingleton<IExporter,    SvgExporter>();
 
         // Application

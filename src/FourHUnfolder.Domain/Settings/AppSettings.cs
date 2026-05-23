@@ -90,6 +90,10 @@ public sealed class AppSettings
 
         // Highlight color for hoverable edges in Edge-Edit mode (ARGB hex)
         public string EdgeHoverColor    { get; set; } = "#ffff9900";
+
+        // Edge ID annotations on cut edges
+        public bool   ShowEdgeIds       { get; set; } = true;
+        public string EdgeIdColor       { get; set; } = "#cc333333";
     }
 
     // ── Print / SVG Export ────────────────────────────────────────────────────
@@ -115,6 +119,10 @@ public sealed class AppSettings
         // Glue tab geometry
         public double GlueTabDepthMm    { get; set; } = 4.0;   // perpendicular depth of tab
         public double GlueTabInsetRatio { get; set; } = 0.15;  // inset from each end as fraction of edge length
+        // Tab shape: "Trapezoid" | "Rectangle" | "Triangle"
+        public string GlueTabShape      { get; set; } = "Trapezoid";
+        // Alternate flap placement: only one face per cut edge pair gets a tab
+        public bool   AlternateFlaps    { get; set; } = false;
 
         // Output quality
         public double SvgScaleFactor    { get; set; } = 10.0;  // model-mm → SVG px

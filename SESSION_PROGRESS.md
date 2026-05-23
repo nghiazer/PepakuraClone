@@ -1,6 +1,6 @@
 ﻿# 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-22 (session 15 — .4hu self-contained bundle format)  
+> **Last updated:** 2026-05-23 (session 16 — Pepakura parity features)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -34,12 +34,13 @@ No circular dependencies. Domain has zero external dependencies.
 | Step | Class | Notes |
 |------|-------|-------|
 | OBJ load | `ObjMeshLoader` | v/vt/f, MTL map_Kd, fan-triangulation, negative-index guard |
+| Multi-format load | `AssimpMeshLoader` + `MultiFormatMeshLoader` | 3DS, STL, DXF, LWO/LWS, FBX, COLLADA, PLY via Assimp |
 | Dual graph | `DualGraphBuilder` | Dihedral-angle weights; zero-area face guard |
 | MST | `KruskalMstBuilder` | Kruskal + path-compressed Union-Find |
 | Edge marking | `EdgeMarker` | Fold / Cut / Boundary |
 | Unfold | `UnfoldEngine` | BFS circle-circle apex; disconnected components |
 | Overlap | `OverlapDetector` | AABB pre-check + SAT |
-| Tabs | `GlueTabGenerator` | Trapezoidal, tagged with FaceId |
+| Tabs | `GlueTabGenerator` | Trapezoid / Rectangle / Triangle shapes; alternate-flap placement option |
 | Pieces | `PieceComputer` | Union-Find connected components |
 | SVG | `SvgExporter` | Edge-deduplicated; settings-driven; grayscale support |
 
@@ -57,14 +58,20 @@ No circular dependencies. Domain has zero external dependencies.
 - **App icon** (`Assets/app.ico`, 6 sizes 16–256px) embedded in exe and window title bar
 - Unfold setup dialog: real-world scale + paper size
 - **Save/Load `.4hu` project bundle** — self-contained ZIP: embeds mesh + texture + state; not readable in text editors; backward-compatible load of legacy `.pmc` files
+- **Edge ID numbers + glue arrows** on cut edges — matching pair numbers (1, 2, 3…) with outward arrows, configurable color; `ShowEdgeIds` in Settings → 2D View
+- **Auto-align edge** — double-click any edge line on the 2D canvas → snaps piece rotation so that edge is exactly horizontal or vertical (nearest 90°); undoable
+- **Parts alignment toolbar** — 6 new buttons: Align Left / Right / Top / Bottom / Center-H / Center-V on selected pieces; uses rotated AABB for precise alignment; undoable
+- **Glue tab shapes** — Settings → Print: Trapezoid (default), Rectangle, Triangle
+- **Alternate flap placement** — Settings → Print toggle: only one side of each cut edge pair gets a tab (halves tab count)
+- **Multi-format import** — 3DS, STL, DXF, LWO/LWS, FBX, COLLADA, PLY via AssimpNet 5; `MultiFormatMeshLoader` routes by extension
 - Export SVG
 
 ### Settings (4-panel dialog)
 | Section | Key options |
 |---------|------------|
 | 3D View | Background, display mode, face/back color, opacity, edge overlay, lighting, camera FOV/clip |
-| 2D View | Canvas/paper color, grid show+size+color, fold/cut colors+widths+dash, glue tabs, face numbers, piece gap, snap-to-grid, default zoom |
-| Print | Margin, bleed, SVG scale, include tabs/fold/cut/label, grayscale, print line colors |
+| 2D View | Canvas/paper color, grid, fold/cut colors+widths+dash, glue tabs, face numbers, piece gap, snap-to-grid, default zoom, **edge ID show+color** |
+| Print | Margin, bleed, SVG scale, include tabs/fold/cut/label, grayscale, print line colors, **tab shape**, **alternate flaps** |
 | General | **Display unit: mm / inch** |
 
 ---
@@ -76,8 +83,14 @@ No circular dependencies. Domain has zero external dependencies.
 | `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 0 warnings |
 | `dotnet test` | ✅ 29 / 29 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App mở, không crash |
-| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Session 15 |
+| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Session 16 |
 | `.4hu` bundle save/load | ✅ Session 15 |
+| Edge ID labels + glue arrows on cut edges | ✅ Session 16 |
+| Auto-align edge (double-click snap) | ✅ Session 16 |
+| Parts alignment (L/R/T/B/CH/CV) | ✅ Session 16 |
+| Tab shapes: Trapezoid/Rectangle/Triangle | ✅ Session 16 |
+| Alternate flap placement | ✅ Session 16 |
+| Multi-format import: 3DS/STL/DXF/LWO/FBX/DAE/PLY | ✅ Session 16 |
 | 2D texture mapping (affine UV per triangle, DPI-agnostic) | ✅ Session 12 fix |
 | App icon embedded in exe | ✅ Session 11 |
 | Rotate/flip pieces are now undoable (Ctrl+Z) | ✅ Session 12 |

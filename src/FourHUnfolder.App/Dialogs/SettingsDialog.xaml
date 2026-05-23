@@ -584,6 +584,27 @@
                         <CheckBox Content="Show face numbers" IsChecked="{Binding ShowFaceNumbers}"/>
                     </StackPanel>
                 </GroupBox>
+
+                <GroupBox Header="Edge ID Labels  (assembly numbering on cut edges)">
+                    <StackPanel>
+                        <CheckBox Content="Show edge ID numbers on cut edges"
+                                  IsChecked="{Binding ShowEdgeIds}"
+                                  ToolTip="Displays matching pair numbers on cut edges so you know which edges to glue together"/>
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190"/>
+                                <ColumnDefinition Width="28"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Edge ID color (ARGB)" Style="{StaticResource FieldLabel}"/>
+                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                                       Fill="{Binding EdgeIdColor, Converter={StaticResource HexBrush}}"
+                                       Stroke="#666" StrokeThickness="1" Margin="0,0,4,0"/>
+                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                     Text="{Binding EdgeIdColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
             </StackPanel>
 
             <!-- ── Print Panel ────────────────────────────────────── -->
@@ -643,6 +664,17 @@
                         <Grid Margin="0,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="190"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Tab shape" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox Grid.Column="1"
+                                      ItemsSource="{Binding TabShapes}"
+                                      SelectedItem="{Binding GlueTabShape}"
+                                      ToolTip="Trapezoid = inset corners; Rectangle = full-width; Triangle = pointed tip"/>
+                        </Grid>
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190"/>
                                 <ColumnDefinition Width="140"/>
                                 <ColumnDefinition Width="40"/>
                             </Grid.ColumnDefinitions>
@@ -660,7 +692,8 @@
                                 <ColumnDefinition Width="140"/>
                                 <ColumnDefinition Width="40"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Tab inset ratio" Style="{StaticResource FieldLabel}"/>
+                            <TextBlock Text="Tab inset ratio" Style="{StaticResource FieldLabel}"
+                                       ToolTip="Applies to Trapezoid shape only"/>
                             <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
                                     Minimum="0.05" Maximum="0.4"
                                     Value="{Binding GlueTabInsetRatio}"/>
@@ -668,6 +701,9 @@
                                        Text="{Binding GlueTabInsetRatio, StringFormat={}{0:F2}}"
                                        Foreground="#aaaacc" VerticalAlignment="Center" Margin="6,0"/>
                         </Grid>
+                        <CheckBox Content="Alternate flap placement"
+                                  IsChecked="{Binding AlternateFlaps}"
+                                  ToolTip="Only one face per cut edge pair gets a tab — halves the total number of tabs, making assembly cleaner"/>
                     </StackPanel>
                 </GroupBox>
 

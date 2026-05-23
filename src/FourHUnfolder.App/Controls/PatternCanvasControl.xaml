@@ -60,6 +60,20 @@
                 <Button Style="{StaticResource Icon2D}" Content="⟳" Click="RotateCW_Click"
                         ToolTip="Rotate +90°"/>
                 <Separator Margin="4,0"/>
+                <!-- F5: Alignment buttons (visible only when 2+ pieces selected) -->
+                <Button Style="{StaticResource Icon2D}" Content="⬛" Click="AlignLeft_Click"
+                        ToolTip="Align selected pieces — Left edges"/>
+                <Button Style="{StaticResource Icon2D}" Content="▪" Click="AlignCenterV_Click"
+                        ToolTip="Align selected pieces — Center vertically"/>
+                <Button Style="{StaticResource Icon2D}" Content="⬜" Click="AlignRight_Click"
+                        ToolTip="Align selected pieces — Right edges"/>
+                <Button Style="{StaticResource Icon2D}" Content="🔼" Click="AlignTop_Click"
+                        ToolTip="Align selected pieces — Top edges"/>
+                <Button Style="{StaticResource Icon2D}" Content="🔽" Click="AlignBottom_Click"
+                        ToolTip="Align selected pieces — Bottom edges"/>
+                <Button Style="{StaticResource Icon2D}" Content="↔" Click="AlignCenterH_Click"
+                        ToolTip="Align selected pieces — Center horizontally"/>
+                <Separator Margin="4,0"/>
                 <Button Style="{StaticResource Icon2D}" Content="✦" Click="AutoArrange_Click"
                         ToolTip="Auto-arrange pieces"/>
                 <Separator Margin="4,0"/>

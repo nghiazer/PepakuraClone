@@ -1,14 +1,8 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using FourHUnfolder.Domain.Settings;
 
 namespace FourHUnfolder.App.ViewModels;
 
-/// <summary>
-/// Editable clone of <see cref="AppSettings"/> used exclusively by
-/// <see cref="Dialogs.SettingsDialog"/>.
-/// Call <see cref="LoadFrom"/> to populate from the current settings,
-/// then <see cref="ToSettings"/> to get the updated object back.
-/// </summary>
 public partial class SettingsViewModel : ObservableObject
 {
     // ── 3D View ───────────────────────────────────────────────────────────────
@@ -47,7 +41,9 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool   _snapToGrid            = false;
     [ObservableProperty] private double _defaultPixelsPerMm    = 3.0;
     [ObservableProperty] private string _edgeHoverColor        = "#ffff9900";
-    [ObservableProperty] private string _defaultPaperSizeName = "A4";
+    [ObservableProperty] private string _defaultPaperSizeName  = "A4";
+    [ObservableProperty] private bool   _showEdgeIds           = true;
+    [ObservableProperty] private string _edgeIdColor           = "#cc333333";
 
     public IReadOnlyList<string> PaperSizeNames { get; } =
         FourHUnfolder.Domain.Models.PaperSizeModel.Presets
@@ -55,29 +51,31 @@ public partial class SettingsViewModel : ObservableObject
 
     // ── General ───────────────────────────────────────────────────────────────
     [ObservableProperty] private string _displayUnit = "mm";
-    // Values must match AppSettings.GeneralSettings.DisplayUnit exactly ("mm" | "inch")
     public IReadOnlyList<string> DisplayUnits { get; } = ["mm", "inch"];
 
     // ── Print ─────────────────────────────────────────────────────────────────
-    [ObservableProperty] private double _glueTabDepthMm         = 4.0;
-    [ObservableProperty] private double _glueTabInsetRatio      = 0.15;
-    [ObservableProperty] private double _marginMm              = 10.0;
-    [ObservableProperty] private double _bleedMm               = 3.0;
-    [ObservableProperty] private bool   _includeGlueTabs       = true;
-    [ObservableProperty] private bool   _printFoldLines        = true;
-    [ObservableProperty] private bool   _printCutLines         = true;
-    [ObservableProperty] private bool   _includePageLabel      = true;
-    [ObservableProperty] private string _printFoldColor        = "#4169e1";
-    [ObservableProperty] private double _printFoldWidth        = 1.0;
-    [ObservableProperty] private string _printFoldDash         = "4,2";
-    [ObservableProperty] private string _printCutColor         = "#ff0000";
-    [ObservableProperty] private double _printCutWidth         = 1.2;
-    [ObservableProperty] private double _svgScaleFactor        = 10.0;
-    [ObservableProperty] private bool   _grayscaleOutput       = false;
+    [ObservableProperty] private double _glueTabDepthMm    = 4.0;
+    [ObservableProperty] private double _glueTabInsetRatio = 0.15;
+    [ObservableProperty] private string _glueTabShape      = "Trapezoid";
+    [ObservableProperty] private bool   _alternateFlaps    = false;
+    [ObservableProperty] private double _marginMm          = 10.0;
+    [ObservableProperty] private double _bleedMm           = 3.0;
+    [ObservableProperty] private bool   _includeGlueTabs   = true;
+    [ObservableProperty] private bool   _printFoldLines    = true;
+    [ObservableProperty] private bool   _printCutLines     = true;
+    [ObservableProperty] private bool   _includePageLabel  = true;
+    [ObservableProperty] private string _printFoldColor    = "#4169e1";
+    [ObservableProperty] private double _printFoldWidth    = 1.0;
+    [ObservableProperty] private string _printFoldDash     = "4,2";
+    [ObservableProperty] private string _printCutColor     = "#ff0000";
+    [ObservableProperty] private double _printCutWidth     = 1.2;
+    [ObservableProperty] private double _svgScaleFactor    = 10.0;
+    [ObservableProperty] private bool   _grayscaleOutput   = false;
 
-    // ── Static option lists (for ComboBoxes) ──────────────────────────────────
-    public IReadOnlyList<string> DisplayModes   { get; } = ["Solid", "SolidEdges", "Wireframe"];
-    public IReadOnlyList<string> DashPatterns   { get; } = ["4,2", "2,2", "8,2", "6,3", "Solid"];
+    // ── Static option lists ───────────────────────────────────────────────────
+    public IReadOnlyList<string> DisplayModes  { get; } = ["Solid", "SolidEdges", "Wireframe"];
+    public IReadOnlyList<string> DashPatterns  { get; } = ["4,2", "2,2", "8,2", "6,3", "Solid"];
+    public IReadOnlyList<string> TabShapes     { get; } = ["Trapezoid", "Rectangle", "Triangle"];
 
     // ── Conversion helpers ────────────────────────────────────────────────────
 
@@ -118,8 +116,10 @@ public partial class SettingsViewModel : ObservableObject
         PieceGapMm         = s.View2D.PieceGapMm;
         SnapToGrid         = s.View2D.SnapToGrid;
         DefaultPixelsPerMm = s.View2D.DefaultPixelsPerMm;
-        EdgeHoverColor         = s.View2D.EdgeHoverColor;
-        DefaultPaperSizeName   = s.View2D.DefaultPaperSizeName;
+        EdgeHoverColor     = s.View2D.EdgeHoverColor;
+        DefaultPaperSizeName = s.View2D.DefaultPaperSizeName;
+        ShowEdgeIds        = s.View2D.ShowEdgeIds;
+        EdgeIdColor        = s.View2D.EdgeIdColor;
 
         // General
         DisplayUnit = s.General.DisplayUnit;
@@ -127,19 +127,21 @@ public partial class SettingsViewModel : ObservableObject
         // Print
         GlueTabDepthMm    = s.Print.GlueTabDepthMm;
         GlueTabInsetRatio = s.Print.GlueTabInsetRatio;
-        MarginMm        = s.Print.MarginMm;
-        BleedMm         = s.Print.BleedMm;
-        IncludeGlueTabs = s.Print.IncludeGlueTabs;
-        PrintFoldLines  = s.Print.PrintFoldLines;
-        PrintCutLines   = s.Print.PrintCutLines;
-        IncludePageLabel = s.Print.IncludePageLabel;
-        PrintFoldColor  = s.Print.FoldLineColor;
-        PrintFoldWidth  = s.Print.FoldLineWidth;
-        PrintFoldDash   = s.Print.FoldLineDash;
-        PrintCutColor   = s.Print.CutLineColor;
-        PrintCutWidth   = s.Print.CutLineWidth;
-        SvgScaleFactor  = s.Print.SvgScaleFactor;
-        GrayscaleOutput = s.Print.GrayscaleOutput;
+        GlueTabShape      = s.Print.GlueTabShape;
+        AlternateFlaps    = s.Print.AlternateFlaps;
+        MarginMm          = s.Print.MarginMm;
+        BleedMm           = s.Print.BleedMm;
+        IncludeGlueTabs   = s.Print.IncludeGlueTabs;
+        PrintFoldLines    = s.Print.PrintFoldLines;
+        PrintCutLines     = s.Print.PrintCutLines;
+        IncludePageLabel  = s.Print.IncludePageLabel;
+        PrintFoldColor    = s.Print.FoldLineColor;
+        PrintFoldWidth    = s.Print.FoldLineWidth;
+        PrintFoldDash     = s.Print.FoldLineDash;
+        PrintCutColor     = s.Print.CutLineColor;
+        PrintCutWidth     = s.Print.CutLineWidth;
+        SvgScaleFactor    = s.Print.SvgScaleFactor;
+        GrayscaleOutput   = s.Print.GrayscaleOutput;
     }
 
     public AppSettings ToSettings() => new()
@@ -163,48 +165,52 @@ public partial class SettingsViewModel : ObservableObject
         },
         View2D = new()
         {
-            CanvasBackground  = CanvasBackground,
-            PaperColor        = PaperColor,
-            ShowGrid          = ShowGrid,
-            GridSizeMm        = GridSizeMm,
-            GridColor         = GridColor,
-            FaceFillColor     = FaceFillColor,
-            FoldLineColor     = FoldLineColor2D,
-            FoldLineWidth     = FoldLineWidth2D,
-            FoldLineDash      = FoldLineDash2D,
-            CutLineColor      = CutLineColor2D,
-            CutLineWidth      = CutLineWidth2D,
-            ShowGlueTabs      = ShowGlueTabs,
-            GlueTabColor      = GlueTabColor,
-            ShowFaceNumbers    = ShowFaceNumbers,
-            FaceNumberColor    = FaceNumberColor,
-            PieceGapMm         = PieceGapMm,
-            SnapToGrid         = SnapToGrid,
-            DefaultPixelsPerMm = DefaultPixelsPerMm,
-            EdgeHoverColor         = EdgeHoverColor,
-            DefaultPaperSizeName   = DefaultPaperSizeName
+            CanvasBackground     = CanvasBackground,
+            PaperColor           = PaperColor,
+            ShowGrid             = ShowGrid,
+            GridSizeMm           = GridSizeMm,
+            GridColor            = GridColor,
+            FaceFillColor        = FaceFillColor,
+            FoldLineColor        = FoldLineColor2D,
+            FoldLineWidth        = FoldLineWidth2D,
+            FoldLineDash         = FoldLineDash2D,
+            CutLineColor         = CutLineColor2D,
+            CutLineWidth         = CutLineWidth2D,
+            ShowGlueTabs         = ShowGlueTabs,
+            GlueTabColor         = GlueTabColor,
+            ShowFaceNumbers      = ShowFaceNumbers,
+            FaceNumberColor      = FaceNumberColor,
+            PieceGapMm           = PieceGapMm,
+            SnapToGrid           = SnapToGrid,
+            DefaultPixelsPerMm   = DefaultPixelsPerMm,
+            EdgeHoverColor       = EdgeHoverColor,
+            DefaultPaperSizeName = DefaultPaperSizeName,
+            ShowEdgeIds          = ShowEdgeIds,
+            EdgeIdColor          = EdgeIdColor
         },
         Print = new()
         {
             GlueTabDepthMm    = GlueTabDepthMm,
             GlueTabInsetRatio = GlueTabInsetRatio,
-            MarginMm        = MarginMm,
-            BleedMm         = BleedMm,
-            IncludeGlueTabs = IncludeGlueTabs,
-            PrintFoldLines  = PrintFoldLines,
-            PrintCutLines   = PrintCutLines,
-            IncludePageLabel = IncludePageLabel,
-            FoldLineColor   = PrintFoldColor,
-            FoldLineWidth   = PrintFoldWidth,
-            FoldLineDash    = PrintFoldDash,
-            CutLineColor    = PrintCutColor,
-            CutLineWidth    = PrintCutWidth,
-            SvgScaleFactor  = SvgScaleFactor,
-            GrayscaleOutput = GrayscaleOutput
+            GlueTabShape      = GlueTabShape,
+            AlternateFlaps    = AlternateFlaps,
+            MarginMm          = MarginMm,
+            BleedMm           = BleedMm,
+            IncludeGlueTabs   = IncludeGlueTabs,
+            PrintFoldLines    = PrintFoldLines,
+            PrintCutLines     = PrintCutLines,
+            IncludePageLabel  = IncludePageLabel,
+            FoldLineColor     = PrintFoldColor,
+            FoldLineWidth     = PrintFoldWidth,
+            FoldLineDash      = PrintFoldDash,
+            CutLineColor      = PrintCutColor,
+            CutLineWidth      = PrintCutWidth,
+            SvgScaleFactor    = SvgScaleFactor,
+            GrayscaleOutput   = GrayscaleOutput
         },
         General = new()
         {
-            DisplayUnit = DisplayUnit  // "mm" or "inch" — already stored as the canonical value
+            DisplayUnit = DisplayUnit
         }
     };
 }

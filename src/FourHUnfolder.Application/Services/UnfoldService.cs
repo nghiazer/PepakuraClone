@@ -52,11 +52,24 @@ public class UnfoldService
         // 4. BFS unfold
         var rawResult   = _unfoldEngine.Unfold(mesh, foldEdgeIds);
         var hasOverlaps = _overlapDetector.HasOverlaps(rawResult.Faces);
-        var tabs        = _tabGenerator.Generate(rawResult.Faces,
-                              (float)(printSettings?.GlueTabDepthMm    ?? 4.0),
-                              (float)(printSettings?.GlueTabInsetRatio ?? 0.15));
+        var tabs = _tabGenerator.Generate(
+            rawResult.Faces,
+            (float)(printSettings?.GlueTabDepthMm    ?? 4.0),
+            (float)(printSettings?.GlueTabInsetRatio ?? 0.15),
+            printSettings?.GlueTabShape   ?? "Trapezoid",
+            printSettings?.AlternateFlaps ?? false,
+            mesh);
 
-        return new UnfoldResult(rawResult.Faces, tabs, hasOverlaps);
+        // Assign sequential 1-based IDs to every cut edge pair (both faces share the same ID)
+        var cutEdgePairIds = new Dictionary<int, int>();
+        int pairCounter = 0;
+        foreach (var edge in mesh.Edges)
+        {
+            if (edge.FaceB >= 0 && !foldEdgeIds.Contains(edge.Id))
+                cutEdgePairIds[edge.Id] = ++pairCounter;
+        }
+
+        return new UnfoldResult(rawResult.Faces, tabs, hasOverlaps, cutEdgePairIds);
     }
 
     /// Returns the connected components (pieces) for an already-marked mesh.
