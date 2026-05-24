@@ -84,3 +84,14 @@
 | 3D texture (multi-material) | `BuildWpfModel` used single texture for all faces; multi-material OBJ showed wrong texture in 3D | Faces grouped by `MaterialId`; separate `GeometryModel3D` per material with its own `_materialBitmaps` entry; `_geoFaceIds` dict + `ResolveHitFaceId` preserves 3D pick correctness | 20 |
 | `SetMaterialTexture` 3D blind | Changing slot in TextureDialog updated 2D but not 3D model | Added `MeshModel = BuildWpfModel(...)` call at end of `SetMaterialTexture` | 20 |
 | Edge click too narrow | Edge Lines had 0.6–1.0 px stroke = 0.6–1.0 px hit area; required pixel-precise cursor | Added `EdgeTag` class; visual `Line` is `IsHitTestVisible=false`; second transparent `StrokeThickness=8` hit-zone Line on top carries all events | 20 |
+| `RestoreProjectState` missing `RebuildMaterialSlots` | Project load re-loaded mesh but did not populate `_materialBitmaps`; 3D model built with empty/stale dict | Added `RebuildMaterialSlots(_currentMesh)` call before `BuildWpfModel` in `RestoreProjectState` | 21 |
+| 3D ImageBrush UV distortion | `ImageBrush { Stretch=Fill }` without explicit Viewport caused UV distortion for multi-material groups | Set `ViewportUnits=Absolute`, `Viewport=(0,0,1,1)`, `TileMode=Tile` on every `ImageBrush` in `BuildWpfModel` | 21 |
+| `SetMaterialTexture` 2D stale | `Canvas2DTexture` property change not raised after slot change → 2D canvas did not rebuild | Added `OnPropertyChanged(nameof(Canvas2DTexture))` at end of `SetMaterialTexture` | 21 |
+
+---
+
+## ⛔ Open Critical Bugs (unresolved as of session 22)
+
+| ID | Severity | Description | Root Cause |
+|----|----------|-------------|------------|
+| CRITICAL-3D-TEX | Critical | 3D multi-material texture wrong after unfold | `CommitPreview` + `EnterPreview` call `BuildWpfModel` without `_materialBitmaps` → single texture applied to all material groups; also `_materialBitmaps[i]` may be null if MTL path missing |

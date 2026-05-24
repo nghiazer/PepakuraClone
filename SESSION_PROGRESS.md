@@ -1,6 +1,6 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-23 (session 21 — fixed 3D texture rendering & slot manager dialog, publish win-x64 exe)  
+> **Last updated:** 2026-05-24 (session 22 — comprehensive review, critical bug noted, publish v0.0.2.A release)  
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF  
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -78,24 +78,48 @@ No circular dependencies. Domain has zero external dependencies.
 
 | Item | Result |
 |------|--------|
-| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 4 warnings (NuGet version hint) |
+| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 7 warnings (NuGet NU1603 only) |
 | `dotnet test` | ✅ 34 / 34 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App mở, không crash |
-| Published `4H-Unfolder.exe` (win-x64, self-contained) | ✅ Session 21 |
-| 3D multi-material texture (`BuildWpfModel` absolute UV) | ✅ Session 21 |
+| Published `4H-Unfolder.exe` v0.0.2.A (win-x64, self-contained) | ✅ Session 22 |
+| **3D multi-material texture** | ⚠ CRITICAL — bug still present (see below) |
 | Edge hit zone (8px transparent Line on top) | ✅ Session 20 |
-| TD-S13/S14 tech debt resolved (all 6 items) | ✅ Session 19 |
-| Review fixes: `DegenerateEdge` constant, tab pen hoisted | ✅ Session 19 |
+| `RebuildMaterialSlots` on project restore | ✅ Session 21 |
+| `BuildWpfModel` absolute UV viewport | ✅ Session 21 |
 
 ---
 
-## Session 21 — Changes
+## ⛔ CRITICAL BUG — 3D Multi-material Texture (unresolved)
+
+**Symptom:** Loading a multi-material OBJ → Unfold → 3D viewport shows wrong textures (e.g. solid blue body + wrong-texture extremities). 2D canvas is correct.
+
+**Root causes identified (session 22 review):**
+
+| # | Location | Description |
+|---|----------|-------------|
+| C-1 | `MainViewModel.CommitPreview` | Calls `BuildWpfModel(_currentMesh, tex)` **without** `_materialBitmaps` → after any preview Apply/Cancel, the 3D model reverts to single-texture for ALL material groups |
+| C-2 | `MainViewModel.EnterPreview` | Same: calls `BuildWpfModel(_currentMesh!, tex)` without `_materialBitmaps` |
+| C-3 | `MainViewModel.RebuildMaterialSlots` | For multi-material meshes, `_materialBitmaps[i]` may be `null` if `MaterialTexturePaths[i]` is null/missing → falls back to `singleTexture` which could be a different material's texture |
+
+**Not yet fixed — needs dedicated session.**
+
+---
+
+## Session 22 — Changes
 
 | Item | Detail |
 |------|--------|
-| **3D absolute UV** | Modified `BuildWpfModel` to use `BrushMappingMode.Absolute` and a `Viewport` of `0,0,1,1` on `ImageBrush`. This fixes texture warping/distortion by ignoring dynamic bounding boxes of individual materials |
-| **Texture Dialog** | Called `RebuildMaterialSlots` on project load in `RestoreProjectState` to prevent empty slot entries. Explicitly raised `Canvas2DTexture` property changed to update the 2D canvas |
-| **Published EXE** | Rebuilt win-x64 self-contained `4H-Unfolder.exe` containing these fixes |
+| **Critical bug noted** | 3D multi-material texture still broken; root causes C-1/C-2/C-3 documented above |
+| **Comprehensive review** | Full source review — see "Remaining Tech Debt" table for all findings |
+| **Release v0.0.2.A** | Published win-x64 self-contained EXE; git tag `v0.0.2.A` created |
+
+## Session 21 — Changes (kept)
+
+| Item | Detail |
+|------|--------|
+| **3D absolute UV** | `BuildWpfModel` uses `BrushMappingMode.Absolute` + `Viewport=(0,0,1,1)` + `TileMode.Tile` on ImageBrush |
+| **RestoreProjectState** | Added `RebuildMaterialSlots(_currentMesh)` call so project load populates `_materialBitmaps` |
+| **SetMaterialTexture** | Added `OnPropertyChanged(nameof(Canvas2DTexture))` to force 2D canvas rebuild on slot change |
 
 ## Session 20 — Changes (kept)
 
@@ -107,26 +131,19 @@ No circular dependencies. Domain has zero external dependencies.
 | **Edge hit zone** | Added `EdgeTag` class; each edge now has a thin visual `Line` (`IsHitTestVisible=false`) + a transparent `StrokeThickness=8` hit-zone Line on top; all event handlers updated |
 | **Startup note** | Startup latency is HelixToolkit 3D renderer + .NET JIT cold start — use published Release build for best startup time; no code regression |
 
-## Session 19 — Changes (kept)
-
-| Item | Detail |
-|------|--------|
-| **TD-S13-1** | `_dotRedBrush` now frozen via `HexBrush("#dc3232","#dc3232")` |
-| **TD-S13-2** | `ShowVtxDots()` shows dots for selected pieces only; falls back to all if none selected |
-| **TD-S13-3** | `RebuildAll()` saves pivot GroupId+position; tries to restore phase=1 after rebuild |
-| **TD-S14-1** | Lasso now uses `AnyVertexInLasso()` — checks actual canvas-space vertex positions |
-| **TD-S14-2** | Middle-mouse pan uses velocity-based acceleration (1×–2.5×) |
-| **TD-S14-3** | SettingsDialog live-applies paper size on `DefaultPaperSizeName` change; Cancel reverts |
-| **Review fix** | `ReconstructApex` uses `DegenerateEdge` constant (was hardcoded `1e-6f`) |
-| **Review fix** | Tab outline pen hoisted outside per-tab loop in `PdfExporter` |
-
 ---
 
 ## Remaining Tech Debt
 
 | ID | Priority | Description |
 |----|----------|-------------|
-| Performance | Low | O(n²) overlap check → spatial grid for meshes > 2000 faces |
+| **CRITICAL-3D-TEX** | 🔴 Critical | 3D multi-material texture wrong — `CommitPreview`/`EnterPreview` don't pass `_materialBitmaps` to `BuildWpfModel`; see root causes C-1/C-2/C-3 above |
+| TD-22-1 | 🟠 High | `AssimpMeshLoader` has **no material support** — all faces loaded via Assimp (FBX, 3DS, DAE…) get `MaterialId = -1`; multi-material texture system non-functional for non-OBJ formats |
+| TD-22-2 | 🟠 High | `ProjectState` / `.4hu` does not persist per-material texture paths → on project reload, all slot assignments (except mesh default) are lost |
+| TD-22-3 | 🟡 Medium | `SvgExporter` only embeds a single `texturePath`; multi-material SVG export shows at most one texture for the whole model |
+| TD-22-4 | 🟡 Medium | `SvgExporter` + `PdfExporter` edge-dedup uses `HashSet<(float,float,float,float)>` — float equality is unreliable; should use canonical mesh edge ID |
+| TD-22-5 | 🟡 Medium | `AssimpMeshLoader` loads with `PostProcessSteps.FlipUVs` AND `ToWpfUV` applies `1.0 - uv.Y` — double-flip cancels out but intent is undocumented; remove one layer |
+| Performance | 🟢 Low | O(n²) overlap check → spatial grid for meshes > 2000 faces |
 
 ---
 
