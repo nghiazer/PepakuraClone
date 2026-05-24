@@ -114,18 +114,6 @@ No circular dependencies. Domain has zero external dependencies.
 | **publish/ cleanup** | Removed 272 root-level DLL/EXE artifacts; kept only `v0.0.2.A/` and `v0.0.2.B/` |
 | **Release v0.0.2.C** | Published win-x64 self-contained EXE |
 
-## Session 23 — Changes (kept)
-
-| Item | Detail |
-|------|--------|
-| **`AssemblyStep.cs`** (new) | Lightweight DTO for one assembly step (Domain/Results) |
-| **`AssemblyPlanner.cs`** (new) | BFS piece-adjacency planner from `EdgeType.Cut` edges (Geometry/Algorithms) |
-| **`AssemblyViewModel.cs`** (new) | Original Approach A flat→3D animation; replaced in session 24 |
-| **`AssemblyAnimationWindow.xaml/.cs`** (new) | Dark-theme window with HelixViewport3D, progress bar, step controls |
-| **`MainViewModel`** | Added `OpenAssemblyAnimationCommand`; fixed `_canExport` missing `[NotifyCanExecuteChangedFor]` for PDF + animation commands |
-| **`MainWindow.xaml`** | Added 🎬 button to toolbar |
-| **Bug fix** | `OpenAssemblyAnimationCommand` stayed disabled after Unfold — now fixed |
-
 ---
 
 ## Remaining Tech Debt
@@ -163,9 +151,6 @@ Application/Services/   MeshService UnfoldService ProjectSerializer SettingsServ
 Infrastructure/         ObjMeshLoader AssimpMeshLoader MultiFormatMeshLoader
                         SvgExporter PdfExporter AffineTransformHelper
 
-App/ViewModels/         MainViewModel PieceViewModel SettingsViewModel
-                        MaterialTextureViewModel AssemblyViewModel
-App/Controls/           PatternCanvasControl
 App/ViewModels/         MainViewModel PieceViewModel SettingsViewModel
                         MaterialTextureViewModel AssemblyViewModel ModelOrientationViewModel
 App/Controls/           PatternCanvasControl

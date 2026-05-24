@@ -5,6 +5,20 @@
 
 ---
 
+## Session 23 Changes (archived from SESSION_PROGRESS)
+
+| Item | Detail |
+|------|--------|
+| **`AssemblyStep.cs`** (new) | Lightweight DTO for one assembly step (Domain/Results) |
+| **`AssemblyPlanner.cs`** (new) | BFS piece-adjacency planner from `EdgeType.Cut` edges (Geometry/Algorithms) |
+| **`AssemblyViewModel.cs`** (new) | Original Approach A flat→3D animation; replaced in session 24 |
+| **`AssemblyAnimationWindow.xaml/.cs`** (new) | Dark-theme window with HelixViewport3D, progress bar, step controls |
+| **`MainViewModel`** | Added `OpenAssemblyAnimationCommand`; fixed `_canExport` missing `[NotifyCanExecuteChangedFor]` for PDF + animation commands |
+| **`MainWindow.xaml`** | Added 🎬 button to toolbar |
+| **Bug fix** | `OpenAssemblyAnimationCommand` stayed disabled after Unfold — now fixed |
+
+---
+
 ## All Bugs Fixed (sessions 1–17)
 
 | Session | Severity | Bug | Fix |
