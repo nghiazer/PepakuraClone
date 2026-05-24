@@ -52,7 +52,10 @@
                                           ShowCoordinateSystem="{Binding Show3DCoordinateSystem}"
                                           ShowViewCube="{Binding Show3DViewCube}"
                                           MouseDown="Viewport3D_MouseDown"
-                                          PreviewMouseRightButtonDown="Viewport3D_PreviewRightClick">
+                                          MouseMove="Viewport3D_MouseMove"
+                                          PreviewMouseLeftButtonDown="Viewport3D_PreviewLMBDown"
+                                          PreviewMouseRightButtonDown="Viewport3D_RMBDown"
+                                          PreviewMouseRightButtonUp="Viewport3D_RMBUp">
                         <helix:HelixViewport3D.Camera>
                             <PerspectiveCamera x:Name="MainCamera3D"
                                                Position="3,3,3"
@@ -67,6 +70,8 @@
                         <ModelVisual3D Content="{Binding MeshModel}"/>
                         <!-- Selection highlight overlay (semi-transparent, z-offset) -->
                         <ModelVisual3D Content="{Binding SelectionOverlayModel}"/>
+                        <!-- Feature B: 3D edge hover highlight -->
+                        <ModelVisual3D Content="{Binding EdgeHighlightModel}"/>
                     </helix:HelixViewport3D>
 
                     <TextBlock Text="3D Model" Foreground="#7788aa" FontSize="11"

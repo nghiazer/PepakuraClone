@@ -33,6 +33,26 @@ public sealed class Mesh
 
     public void AddVertex(Vertex v) => Vertices.Add(v);
 
+    /// <summary>
+    /// Applies a rigid-body (or any affine) transform to all vertex positions in-place.
+    /// Call this immediately after loading before building the dual graph.
+    /// </summary>
+    public void ApplyTransform(System.Numerics.Matrix4x4 transform)
+    {
+        for (int i = 0; i < Vertices.Count; i++)
+        {
+            var newPos = System.Numerics.Vector3.Transform(Vertices[i].Position, transform);
+            Vertices[i] = new Vertex(i, newPos);
+        }
+    }
+
+    /// <summary>Flips the V coordinate of all UV entries: V = 1 - V.</summary>
+    public void FlipUVsVertical()
+    {
+        for (int i = 0; i < UVs.Count; i++)
+            UVs[i] = new System.Numerics.Vector2(UVs[i].X, 1.0f - UVs[i].Y);
+    }
+
     /// <param name="ua">UV index for vertex A (-1 if no UV)</param>
     public void AddFace(int a, int b, int c, int ua = -1, int ub = -1, int uc = -1)
     {

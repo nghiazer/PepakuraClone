@@ -15,6 +15,8 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private double _faceOpacity           = 1.0;
     [ObservableProperty] private string _edgeOverlayColor      = "#ffffffff";
     [ObservableProperty] private double _edgeOverlayThickness  = 0.5;
+    [ObservableProperty] private string _edgeHoverDetachColor3D = "#ff3333";
+    [ObservableProperty] private string _edgeHoverAttachColor3D = "#33cc33";
     [ObservableProperty] private double _ambientIntensity      = 0.3;
     [ObservableProperty] private double _directionalIntensity  = 0.85;
     [ObservableProperty] private double _cameraFOV             = 45.0;
@@ -89,9 +91,11 @@ public partial class SettingsViewModel : ObservableObject
         FaceColor3D          = s.View3D.FaceColor;
         BackFaceColor3D      = s.View3D.BackFaceColor;
         FaceOpacity          = s.View3D.FaceOpacity;
-        EdgeOverlayColor     = s.View3D.EdgeOverlayColor;
-        EdgeOverlayThickness = s.View3D.EdgeOverlayThickness;
-        AmbientIntensity     = s.View3D.AmbientIntensity;
+        EdgeOverlayColor      = s.View3D.EdgeOverlayColor;
+        EdgeOverlayThickness  = s.View3D.EdgeOverlayThickness;
+        EdgeHoverDetachColor3D = s.View3D.EdgeHoverDetachColor;
+        EdgeHoverAttachColor3D = s.View3D.EdgeHoverAttachColor;
+        AmbientIntensity      = s.View3D.AmbientIntensity;
         DirectionalIntensity = s.View3D.DirectionalIntensity;
         CameraFOV            = s.View3D.CameraFOV;
         CameraNearPlane      = s.View3D.CameraNearPlane;
@@ -157,6 +161,8 @@ public partial class SettingsViewModel : ObservableObject
             FaceOpacity          = FaceOpacity,
             EdgeOverlayColor     = EdgeOverlayColor,
             EdgeOverlayThickness = EdgeOverlayThickness,
+            EdgeHoverDetachColor = EdgeHoverDetachColor3D,
+            EdgeHoverAttachColor = EdgeHoverAttachColor3D,
             AmbientIntensity     = AmbientIntensity,
             DirectionalIntensity = DirectionalIntensity,
             CameraFOV            = CameraFOV,

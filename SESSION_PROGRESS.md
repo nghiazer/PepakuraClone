@@ -1,6 +1,6 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-24 (session 24 — fold animation + texture in animation window, publish v0.0.2.C)
+> **Last updated:** 2026-05-24 (session 25 — Feature A orientation dialog, Feature B 3D edge hover + RMB pivot, publish v0.0.2.D)
 > **Branch:** `feat/paper-model-unfolder`  (PR #1 open against `main`)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -87,9 +87,21 @@ No circular dependencies. Domain has zero external dependencies.
 | `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 7 warnings (NuGet NU1603 only) |
 | `dotnet test` | ✅ 34 / 34 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App mở, không crash |
-| Published `4H-Unfolder.exe` v0.0.2.C (win-x64, self-contained, 148 MB) | ✅ Session 24 |
+| Published `4H-Unfolder.exe` v0.0.2.D (win-x64, self-contained) | ✅ Session 25 |
 
 ---
+
+## Session 25 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Feature A — Model Orientation Dialog** | New `ModelOrientationDialog.xaml/.cs` + `ModelOrientationViewModel.cs` shown after every `LoadMesh`. 3D colored cube (HelixViewport3D, orbitable) with 6 axis-labeled faces. Two ComboBoxes: Up axis + Front axis (each → ±X/Y/Z). `Mesh.ApplyTransform(Matrix4x4)` + `Mesh.FlipUVsVertical()` added. |
+| **Feature B — 3D Edge Hover + RMB Pivot** | Context menu removed from 3D viewport. `MouseMove` → screen-space edge proximity (8px threshold); hover fold edge = red highlight, hover cut edge = green highlight; LMB = `ToggleEdge`. RMB click (non-drag) = `LookAt(hitPt, 300)` to set rotation pivot. All orbit/zoom/pan mouse actions preserved. |
+| **AppSettings** | +`EdgeHoverDetachColor` (#ff3333), `EdgeHoverAttachColor` (#33cc33) in `View3DSettings` |
+| **SettingsDialog (3D panel)** | New "3D Edge Edit Mode" GroupBox with 2 configurable color pickers |
+| **MainViewModel** | +`CurrentMesh` (read-only), +`EdgeHighlightModel`, +`HoverEdge(edgeId, isDetach)`, +`ClearEdgeHover()`, +`BuildThinCylinder()` |
+| **Build/Test** | ✅ 0 errors / 34 tests passed / app starts clean |
+| **Release v0.0.2.D** | Published win-x64 self-contained EXE |
 
 ## Session 24 — Changes
 
@@ -125,6 +137,9 @@ No circular dependencies. Domain has zero external dependencies.
 | TD-22-3 | 🟡 Medium | `SvgExporter` only embeds a single `texturePath`; multi-material SVG export shows at most one texture for the whole model |
 | TD-22-4 | 🟡 Medium | `SvgExporter` + `PdfExporter` edge-dedup uses `HashSet<(float,float,float,float)>` — float equality is unreliable; should use canonical mesh edge ID |
 | TD-22-5 | 🟡 Medium | `AssimpMeshLoader` loads with `PostProcessSteps.FlipUVs` AND `ToWpfUV` applies `1.0 - uv.Y` — double-flip cancels out but intent is undocumented; remove one layer |
+| TD-24-1 | 🟡 Medium | `PieceFoldTree` fold animation: angles computed from 3D normals applied in flat space — fold direction may be wrong for non-trivial pieces |
+| TD-25-1 | 🟢 Low | `ModelOrientationDialog` shown on every mesh load; add "don't ask again" setting for users who always use Y-up Z-front models |
+| TD-25-2 | 🟢 Low | `FindNearestEdge` in `MainWindow.xaml.cs` projects all edges per `MouseMove` — O(n) per frame; add spatial pre-filter for meshes > 5 000 edges |
 | Performance | 🟢 Low | O(n²) overlap check → spatial grid for meshes > 2000 faces |
 
 ---
@@ -151,8 +166,11 @@ Infrastructure/         ObjMeshLoader AssimpMeshLoader MultiFormatMeshLoader
 App/ViewModels/         MainViewModel PieceViewModel SettingsViewModel
                         MaterialTextureViewModel AssemblyViewModel
 App/Controls/           PatternCanvasControl
+App/ViewModels/         MainViewModel PieceViewModel SettingsViewModel
+                        MaterialTextureViewModel AssemblyViewModel ModelOrientationViewModel
+App/Controls/           PatternCanvasControl
 App/Dialogs/            UnfoldSetupDialog SettingsDialog TextureDialog
-                        AssemblyAnimationWindow
+                        AssemblyAnimationWindow ModelOrientationDialog
 App/Converters/         HexColorBrushConverter
 App/                    MainWindow App
 
@@ -168,5 +186,6 @@ App/Assets/             app.ico (6 sizes) logo.png
 1. **Merge PR #1**: <https://github.com/nghiazer/4H-Unfolder/pull/1>
 2. Fix TD-22-1: Assimp material support (multi-format multi-texture)
 3. Fix TD-22-2: persist per-material texture paths in `.4hu` project files
-4. Performance: spatial grid for overlap check (>2000 face meshes)
-5. PDO import (Pepakura native format — reverse-engineered, complex)
+4. Fix TD-24-1: PieceFoldTree fold animation direction accuracy
+5. Performance: spatial grid for overlap check (>2000 face meshes)
+6. PDO import (Pepakura native format — reverse-engineered, complex)

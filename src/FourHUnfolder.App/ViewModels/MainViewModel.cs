@@ -78,6 +78,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // ── observable properties ─────────────────────────────────────────────────
     [ObservableProperty] private Model3DGroup? _meshModel;
     [ObservableProperty] private Model3DGroup? _selectionOverlayModel;  // 3D highlight
+    [ObservableProperty] private Model3DGroup? _edgeHighlightModel;     // Feature B: 3D edge hover
     [ObservableProperty] private string        _statusText   = "Ready — load a mesh to begin.";
     [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(UnfoldCommand))]  private bool _canUnfold;
     [ObservableProperty]
@@ -100,6 +101,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     // cached loaded bitmaps per materialId (rebuilt when slots change)
     private readonly Dictionary<int, BitmapImage?> _materialBitmaps = new();
+
+    // ── Feature B: expose mesh for edge hover in code-behind ─────────────────
+    /// Read-only access to the current loaded mesh (used by MainWindow for screen-space edge hover).
+    public Mesh? CurrentMesh => _currentMesh;
 
     /// Returns the bitmap for the given materialId (from multi-material slots), or
     /// falls back to Canvas2DTexture if no per-material texture is defined.
@@ -397,6 +402,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
             InvalidateOverlayCache();
 
             CancelPreviewSilently();
+
+            // Feature A: Model orientation dialog
+            var orientDlg = new Dialogs.ModelOrientationDialog
+            {
+                Owner = WpfApp.Current.MainWindow
+            };
+            orientDlg.ShowDialog();
+            if (orientDlg.Applied)
+            {
+                var rot = orientDlg.Result.ComputeRotation();
+                if (rot != System.Numerics.Matrix4x4.Identity)
+                    _currentMesh.ApplyTransform(rot);
+                if (orientDlg.Result.FlipUV)
+                    _currentMesh.FlipUVsVertical();
+            }
+
             _committedTexturePath = _currentMesh.SuggestedTexturePath;
             RebuildMaterialSlots(_currentMesh);
 
@@ -757,6 +778,78 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    // ── Feature B: 3D edge hover highlight ────────────────────────────────────
+
+    /// <summary>
+    /// Highlights the specified edge as a thin cylinder in the 3D viewport.
+    /// </summary>
+    /// <param name="edgeId">Mesh edge index.</param>
+    /// <param name="isDetach">True = fold edge (show detach colour); False = cut edge (attach colour).</param>
+    public void HoverEdge(int edgeId, bool isDetach)
+    {
+        if (_currentMesh == null || edgeId < 0 || edgeId >= _currentMesh.Edges.Count)
+        {
+            ClearEdgeHover();
+            return;
+        }
+
+        var edge  = _currentMesh.Edges[edgeId];
+        var p1    = _currentMesh.Vertices[edge.V1].Position;
+        var p2    = _currentMesh.Vertices[edge.V2].Position;
+
+        var geo   = BuildThinCylinder(
+            new Point3D(p1.X, p1.Y, p1.Z),
+            new Point3D(p2.X, p2.Y, p2.Z),
+            radius: ScaleMmPerUnit * 0.008);
+
+        var colorHex = isDetach ? S.View3D.EdgeHoverDetachColor : S.View3D.EdgeHoverAttachColor;
+        var fallback = isDetach ? "#ff3333" : "#33cc33";
+        var mat   = new DiffuseMaterial(ParseBrush(colorHex, fallback));
+        var model = new GeometryModel3D(geo, mat) { BackMaterial = mat };
+        var group = new Model3DGroup();
+        group.Children.Add(model);
+        EdgeHighlightModel = group;
+    }
+
+    /// <summary>Removes the 3D edge highlight.</summary>
+    public void ClearEdgeHover() => EdgeHighlightModel = null;
+
+    /// Builds a hexagonal prism between two 3D points (thin cylinder approximation).
+    private static MeshGeometry3D BuildThinCylinder(Point3D start, Point3D end, double radius)
+    {
+        var dir = end - start;
+        double len = dir.Length;
+        if (len < 1e-10) return new MeshGeometry3D();
+        dir.Normalize();
+
+        // Perpendicular vectors (Gram-Schmidt)
+        var up    = Math.Abs(dir.Y) < 0.9 ? new Vector3D(0, 1, 0) : new Vector3D(1, 0, 0);
+        var perp1 = Vector3D.CrossProduct(dir, up); perp1.Normalize();
+        var perp2 = Vector3D.CrossProduct(dir, perp1);
+
+        const int sides = 6;
+        var positions = new Point3DCollection(sides * 2);
+        var indices   = new Int32Collection(sides * 6);
+
+        for (int i = 0; i < sides; i++)
+        {
+            double ang    = i * 2 * Math.PI / sides;
+            var    offset = (perp1 * Math.Cos(ang) + perp2 * Math.Sin(ang)) * radius;
+            positions.Add(start + offset);
+            positions.Add(end   + offset);
+        }
+
+        for (int i = 0; i < sides; i++)
+        {
+            int next = (i + 1) % sides;
+            int b0 = i * 2, b1 = next * 2, t0 = i * 2 + 1, t1 = next * 2 + 1;
+            indices.Add(b0); indices.Add(t0); indices.Add(b1);
+            indices.Add(b1); indices.Add(t0); indices.Add(t1);
+        }
+
+        return new MeshGeometry3D { Positions = positions, TriangleIndices = indices };
+    }
+
     // ── selection overlay (TD-5: cached per piece group) ────────────────────────
 
     private void BuildSelectionOverlay(PieceViewModel? piece)
@@ -818,6 +911,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _cachedOverlayModel   = null;
         SelectionOverlayModel = null;
         SelectedFaceId        = -1;
+        ClearEdgeHover();   // also clear 3D edge hover (mesh changed)
     }
 
     // ══════════════════════════════════════════════════════════════════════════

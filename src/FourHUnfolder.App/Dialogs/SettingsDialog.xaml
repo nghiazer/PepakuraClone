@@ -307,6 +307,40 @@
                     </StackPanel>
                 </GroupBox>
 
+                <!-- 3D Edge Edit Mode -->
+                <GroupBox Header="3D Edge Edit Mode  (hover an edge → LMB to detach/attach)">
+                    <StackPanel>
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190"/>
+                                <ColumnDefinition Width="28"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Detachable edge color" Style="{StaticResource FieldLabel}"
+                                       ToolTip="Color shown when hovering over a fold edge that can be detached (made into a cut)"/>
+                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                                       Fill="{Binding EdgeHoverDetachColor3D, Converter={StaticResource HexBrush}}"
+                                       Stroke="#666" StrokeThickness="1" Margin="0,0,4,0"/>
+                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                     Text="{Binding EdgeHoverDetachColor3D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </Grid>
+                        <Grid Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190"/>
+                                <ColumnDefinition Width="28"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Attachable edge color" Style="{StaticResource FieldLabel}"
+                                       ToolTip="Color shown when hovering over a cut edge that can be re-attached (made into a fold)"/>
+                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                                       Fill="{Binding EdgeHoverAttachColor3D, Converter={StaticResource HexBrush}}"
+                                       Stroke="#666" StrokeThickness="1" Margin="0,0,4,0"/>
+                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                     Text="{Binding EdgeHoverAttachColor3D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
                 <!-- Lighting -->
                 <GroupBox Header="Lighting">
                     <StackPanel>

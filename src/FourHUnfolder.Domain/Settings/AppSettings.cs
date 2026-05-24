@@ -34,6 +34,10 @@ public sealed class AppSettings
         public string EdgeOverlayColor     { get; set; } = "#ffffffff";
         public double EdgeOverlayThickness { get; set; } = 0.5;
 
+        // 3D edge-hover highlight colors (detachable fold = red, attachable cut = green)
+        public string EdgeHoverDetachColor { get; set; } = "#ff3333";
+        public string EdgeHoverAttachColor { get; set; } = "#33cc33";
+
         // Lighting
         public double AmbientIntensity     { get; set; } = 0.3;
         public double DirectionalIntensity { get; set; } = 0.85;
