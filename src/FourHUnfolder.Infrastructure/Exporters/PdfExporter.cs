@@ -88,6 +88,7 @@ public class PdfExporter
             }
 
             // ── fold / cut / boundary lines ────────────────────────────────
+            // TD-22-4: use rounded-coordinate edge key to avoid float equality issues
             var drawn = new HashSet<(float, float, float, float)>();
             foreach (var face in result.Faces)
             {
@@ -100,10 +101,8 @@ public class PdfExporter
                     if (isFold && !p.PrintFoldLines) continue;
                     if (!isFold && !isBoundary && !p.PrintCutLines) continue;
 
-                    var va = verts[i]; var vb = verts[(i + 1) % 3];
-                    var key = va.X <= vb.X || (va.X == vb.X && va.Y <= vb.Y)
-                        ? (va.X, va.Y, vb.X, vb.Y)
-                        : (vb.X, vb.Y, va.X, va.Y);
+                    var va  = verts[i]; var vb = verts[(i + 1) % 3];
+                    var key = EdgeKey(va, vb);
                     if (!drawn.Add(key)) continue;
 
                     var pen = isBoundary ? boundPen : (isFold ? foldPen : cutPen);
@@ -129,6 +128,14 @@ public class PdfExporter
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    /// TD-22-4: canonical edge key using 3-dp rounded coordinates, order-independent.
+    private static (float, float, float, float) EdgeKey(Vector2 a, Vector2 b)
+    {
+        float ax = MathF.Round(a.X, 3), ay = MathF.Round(a.Y, 3);
+        float bx = MathF.Round(b.X, 3), by = MathF.Round(b.Y, 3);
+        return (ax < bx || (ax == bx && ay <= by)) ? (ax, ay, bx, by) : (bx, by, ax, ay);
+    }
 
     private static XPoint[] ToPoints(IReadOnlyList<Vector2> verts,
                                      Func<double, double> toX,

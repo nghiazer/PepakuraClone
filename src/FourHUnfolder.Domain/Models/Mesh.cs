@@ -54,10 +54,11 @@ public sealed class Mesh
     }
 
     /// <param name="ua">UV index for vertex A (-1 if no UV)</param>
-    public void AddFace(int a, int b, int c, int ua = -1, int ub = -1, int uc = -1)
+    /// <param name="materialId">Material index for this face (-1 = no material).</param>
+    public void AddFace(int a, int b, int c, int ua = -1, int ub = -1, int uc = -1, int materialId = -1)
     {
         var faceId = Faces.Count;
-        var face   = new Face(faceId, a, b, c);
+        var face   = new Face(faceId, a, b, c) { MaterialId = materialId };
         Faces.Add(face);
         _faceUVs.Add((ua, ub, uc));
 

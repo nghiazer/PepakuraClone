@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Numerics;
 using System.Text;
 using FourHUnfolder.Application.Interfaces;
@@ -16,8 +16,10 @@ namespace FourHUnfolder.Infrastructure.Exporters;
 ///   .cut      — solid,  settings colour (cut edges between pieces)
 ///   .boundary — thin dark grey (outer mesh boundary, no glue)
 ///
-/// When <paramref name="texturePath"/> is supplied and faces carry UV coords,
-/// the texture is embedded as a base-64 data URI and affine-mapped per face.
+/// When texture data is supplied and faces carry UV coords, each face's texture
+/// is embedded as a base-64 data URI (one per distinct material) and affine-mapped.
+/// Per-material textures (<paramref name="perMaterialTextures"/>) take precedence
+/// over the single fallback <paramref name="texturePath"/>.
 /// </summary>
 public class SvgExporter : IExporter
 {
@@ -25,7 +27,9 @@ public class SvgExporter : IExporter
 
     public SvgExporter(SettingsService settings) => _settings = settings;
 
-    public void Export(UnfoldResult result, string filePath, string? texturePath = null)
+    public void Export(UnfoldResult result, string filePath,
+                       string? texturePath = null,
+                       IReadOnlyDictionary<int, string?>? perMaterialTextures = null)
     {
         var p = _settings.Current.Print;
 
@@ -57,25 +61,31 @@ public class SvgExporter : IExporter
             ? string.Empty
             : $" stroke-dasharray=\"{p.FoldLineDash}\"";
 
-        // ── texture ────────────────────────────────────────────────────────────
-        bool hasTexture = !string.IsNullOrEmpty(texturePath)
-            && File.Exists(texturePath)
-            && result.Faces.Any(f => f.UVCoords != null);
+        // ── TD-22-3: build per-material data URI dictionary ────────────────────
+        // Key: MaterialId (-1 = default/fallback). Value: data URI string.
+        var matDataUris = new Dictionary<int, string>();
 
-        string? texDataUri  = null;
-        if (hasTexture)
+        // Fallback / single-texture mode
+        if (!string.IsNullOrEmpty(texturePath) && File.Exists(texturePath))
         {
-            try
-            {
-                var bytes = File.ReadAllBytes(texturePath!);
-                var ext   = Path.GetExtension(texturePath!).TrimStart('.').ToLowerInvariant();
-                var mime  = ext switch { "jpg" or "jpeg" => "image/jpeg",
-                                         "bmp"           => "image/bmp",
-                                         _               => "image/png" };
-                texDataUri = $"data:{mime};base64,{Convert.ToBase64String(bytes)}";
-            }
-            catch { hasTexture = false; }
+            var uri = TryBuildDataUri(texturePath!);
+            if (uri != null) matDataUris[-1] = uri;
         }
+
+        // Per-material textures (override or supplement)
+        if (perMaterialTextures != null)
+        {
+            foreach (var (matId, path) in perMaterialTextures)
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path!))
+                {
+                    var uri = TryBuildDataUri(path!);
+                    if (uri != null) matDataUris[matId] = uri;
+                }
+            }
+        }
+
+        bool hasTexture = matDataUris.Count > 0 && result.Faces.Any(f => f.UVCoords != null);
 
         var sb = new StringBuilder();
         sb.AppendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
@@ -94,7 +104,7 @@ public class SvgExporter : IExporter
         // Clip paths for textured faces
         if (hasTexture)
         {
-            foreach (var face in result.Faces.Where(f => f.UVCoords != null))
+            foreach (var face in result.Faces.Where(f => f.UVCoords != null && ResolveUri(f, matDataUris) != null))
             {
                 sb.AppendLine($"    <clipPath id=\"cp{face.FaceId}\">" +
                               $"<polygon points=\"{Pt(face.V0)} {Pt(face.V1)} {Pt(face.V2)}\"/></clipPath>");
@@ -112,18 +122,18 @@ public class SvgExporter : IExporter
             sb.AppendLine($"  <polygon points=\"{pts}\" class=\"face\"/>");
         }
 
-        // ── texture overlay (affine-mapped per face) ───────────────────────────
-        if (hasTexture && texDataUri != null)
+        // ── TD-22-3: texture overlay (affine-mapped per face, per material) ────
+        if (hasTexture)
         {
-            sb.AppendLine("  <!-- UV-mapped texture overlay -->");
+            sb.AppendLine("  <!-- UV-mapped texture overlay (per material) -->");
             foreach (var face in result.Faces.Where(f => f.UVCoords != null))
             {
+                var faceUri = ResolveUri(face, matDataUris);
+                if (faceUri == null) continue;
+
                 var uv  = face.UVCoords!;
                 var svg = face.Vertices;
 
-                // Affine transform: UV [0,1]² → SVG pixel space
-                // Source: UV (u,v) coordinates for each vertex
-                // Dest:   SVG pixel (x,y) for each vertex
                 double[] src = [uv[0].X, uv[0].Y, uv[1].X, uv[1].Y, uv[2].X, uv[2].Y];
                 double[] dst = [
                     (svg[0].X - minX) * scale + margin,
@@ -138,7 +148,7 @@ public class SvgExporter : IExporter
                 if (m == null) continue;
 
                 sb.AppendLine(
-                    $"  <image href=\"{texDataUri}\" width=\"1\" height=\"1\" " +
+                    $"  <image href=\"{faceUri}\" width=\"1\" height=\"1\" " +
                     $"preserveAspectRatio=\"none\" " +
                     $"clip-path=\"url(#cp{face.FaceId})\" " +
                     $"transform=\"matrix({Dm(m[0])},{Dm(m[1])},{Dm(m[2])},{Dm(m[3])},{Dm(m[4])},{Dm(m[5])})\" " +
@@ -147,6 +157,7 @@ public class SvgExporter : IExporter
         }
 
         // ── fold / cut / boundary lines ────────────────────────────────────────
+        // TD-22-4: use rounded-coordinate edge key to avoid float equality issues
         var drawnEdges = new HashSet<(float, float, float, float)>();
 
         foreach (var face in result.Faces)
@@ -163,9 +174,8 @@ public class SvgExporter : IExporter
                 var pa  = verts[i];
                 var pb  = verts[(i + 1) % 3];
 
-                var key = pa.X <= pb.X || (pa.X == pb.X && pa.Y <= pb.Y)
-                    ? (pa.X, pa.Y, pb.X, pb.Y)
-                    : (pb.X, pb.Y, pa.X, pa.Y);
+                // TD-22-4: round coordinates to 3 decimal places before hashing
+                var key = EdgeKey(pa, pb);
                 if (!drawnEdges.Add(key)) continue;
 
                 string cls = isBoundary ? "boundary" : (isFold ? "fold" : "cut");
@@ -188,10 +198,40 @@ public class SvgExporter : IExporter
         File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
     }
 
+    // ── helpers ────────────────────────────────────────────────────────────────
+
+    /// TD-22-3: resolve the data URI for a face — materialId first, then -1 fallback.
+    private static string? ResolveUri(UnfoldedFace face, Dictionary<int, string> uris)
+    {
+        if (uris.TryGetValue(face.MaterialId, out var uri)) return uri;
+        if (uris.TryGetValue(-1, out uri))                  return uri;
+        return null;
+    }
+
+    private static string? TryBuildDataUri(string path)
+    {
+        try
+        {
+            var bytes = File.ReadAllBytes(path);
+            var ext   = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
+            var mime  = ext switch { "jpg" or "jpeg" => "image/jpeg",
+                                     "bmp"           => "image/bmp",
+                                     _               => "image/png" };
+            return $"data:{mime};base64,{Convert.ToBase64String(bytes)}";
+        }
+        catch { return null; }
+    }
+
+    /// TD-22-4: canonical edge key using 3-dp rounded coordinates, order-independent.
+    private static (float, float, float, float) EdgeKey(Vector2 a, Vector2 b)
+    {
+        float ax = MathF.Round(a.X, 3), ay = MathF.Round(a.Y, 3);
+        float bx = MathF.Round(b.X, 3), by = MathF.Round(b.Y, 3);
+        return (ax < bx || (ax == bx && ay <= by)) ? (ax, ay, bx, by) : (bx, by, ax, ay);
+    }
+
     private static double[]? AffineTransform(double[] src, double[] dst) =>
         AffineTransformHelper.Compute(src, dst);
-
-    // ── string helpers ─────────────────────────────────────────────────────────
 
     private static string F(float  v) => v.ToString("F2", CultureInfo.InvariantCulture);
     private static string Dm(double v) => v.ToString("F6", CultureInfo.InvariantCulture);

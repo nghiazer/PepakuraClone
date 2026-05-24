@@ -510,8 +510,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             // Use current canvas layout (positions/rotations applied) instead of re-running unfold
-            var result = BuildExportLayout();
-            _exporter.Export(result, dlg.FileName, _committedTexturePath);
+            var result   = BuildExportLayout();
+            // TD-22-3: pass per-material texture paths for multi-texture SVG export
+            var matPaths = GetMaterialTexturePaths();
+            _exporter.Export(result, dlg.FileName, _committedTexturePath, matPaths);
             StatusText = $"Exported to {Path.GetFileName(dlg.FileName)}";
         }
         catch (Exception ex) { Error("Export SVG failed", ex); }
@@ -558,8 +560,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            var state = BuildProjectState();
-            _serializer.SaveBundle(state, _currentMeshPath!, _committedTexturePath, dlg.FileName);
+            var state    = BuildProjectState();
+            // TD-22-2: persist per-material textures in the bundle
+            var matPaths = GetMaterialTexturePaths();
+            _serializer.SaveBundle(state, _currentMeshPath!, _committedTexturePath, dlg.FileName, matPaths);
             StatusText = $"Project saved: {Path.GetFileName(dlg.FileName)}";
             MarkClean();
         }
@@ -1014,7 +1018,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
                     ToCanvas(fd.V0.X, fd.V0.Y),
                     ToCanvas(fd.V1.X, fd.V1.Y),
                     ToCanvas(fd.V2.X, fd.V2.Y),
-                    fd.EdgeIsFold, fd.EdgeIsBoundary, uvCoords));
+                    fd.EdgeIsFold, fd.EdgeIsBoundary, uvCoords,
+                    fd.MaterialId));   // TD-22-3: propagate material ID to export
             }
 
             foreach (var tab in piece.GlueTabs)
@@ -1180,6 +1185,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 Rotation  = piece.Rotation
             });
 
+        // TD-22-2: persist per-material texture paths (for .pmc non-bundle format)
+        foreach (var (matId, path) in GetMaterialTexturePaths())
+            state.MaterialTexturePaths[matId] = path;
+
         return state;
     }
 
@@ -1229,8 +1238,24 @@ public partial class MainViewModel : ObservableObject, IDisposable
         PagesWide = Math.Max(1, state.PagesWide);
         PagesTall = Math.Max(1, state.PagesTall);
 
+        // TD-22-2: restore per-material texture slots before building 3D model
+        if (state.MaterialTexturePaths.Count > 0)
+        {
+            foreach (var (matId, path) in state.MaterialTexturePaths)
+            {
+                var slot = MaterialTextureSlots.FirstOrDefault(s => s.MaterialId == matId);
+                if (slot != null)
+                {
+                    slot.TexturePath = path;
+                    slot.Thumbnail   = LoadBitmapImage(path);
+                    _materialBitmaps[matId] = slot.Thumbnail;
+                }
+            }
+        }
+
         // Restore texture
-        _committedTexturePath = state.TexturePath;
+        _committedTexturePath = state.TexturePath
+            ?? MaterialTextureSlots.FirstOrDefault(s => s.HasTexture)?.TexturePath;
         var tex = LoadBitmapImage(_committedTexturePath);
         MeshModel  = BuildWpfModel(_currentMesh, tex, _materialBitmaps);
         CanUnfold  = true;
@@ -1306,6 +1331,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             }
         }
     }
+
+    /// TD-22-2/22-3: returns a dict of materialId → file path for all slots that have a texture.
+    private IReadOnlyDictionary<int, string?> GetMaterialTexturePaths() =>
+        MaterialTextureSlots.ToDictionary(s => s.MaterialId, s => (string?)s.TexturePath);
 
     private void UpdateTextureUI(BitmapImage? tex, string? path, bool isPreview)
     {

@@ -5,6 +5,30 @@
 
 ---
 
+## Session 26 Changes (archived from SESSION_PROGRESS)
+
+| Item | Detail |
+|------|--------|
+| **TD-22-1 — Assimp material support** | `AssimpMeshLoader` reads `scene.Materials`, populates `mesh.MaterialNames`/`MaterialTexturePaths`/`SuggestedTexturePath`; uses `aMesh.MaterialIndex` → all Assimp-loaded faces now get correct `MaterialId` |
+| **TD-22-2 — Multi-texture project persistence** | `ProjectState` +`MaterialTexturePaths` + `BundledMaterialTextureExts`; `ProjectSerializer` embeds/restores per-material textures as `texture_<matId>.<ext>` in `.4hu` bundles; `.pmc` relativizes paths |
+| **TD-22-3 — Multi-material SVG export** | `UnfoldedFace` +`MaterialId`; `UnfoldEngine` propagates it; `IExporter` +`perMaterialTextures` param; `SvgExporter` emits per-face data URIs by material; `BuildExportLayout` passes `fd.MaterialId` |
+| **TD-22-4 — Float edge-dedup fix** | `SvgExporter` + `PdfExporter`: `EdgeKey()` rounds to 3 dp and canonicalises order — replaces raw float tuple hash |
+| **TD-22-5 — UV double-flip removed** | Removed `PostProcessSteps.FlipUVs` from `AssimpMeshLoader`; single `ToWpfUV` flip is correct |
+
+---
+
+## Session 25 Changes (archived from SESSION_PROGRESS)
+
+| Item | Detail |
+|------|--------|
+| **Feature A — Model Orientation Dialog** | New `ModelOrientationDialog.xaml/.cs` + `ModelOrientationViewModel.cs` shown after every `LoadMesh`. 3D colored cube with 6 axis-labeled faces. Two ComboBoxes: Up + Front axis (each → ±X/Y/Z). `Mesh.ApplyTransform(Matrix4x4)` + `Mesh.FlipUVsVertical()` added. |
+| **Feature B — 3D Edge Hover + RMB Pivot** | Context menu removed. `MouseMove` → screen-space edge proximity (8px); hover fold = red, hover cut = green; LMB = `ToggleEdge`. RMB click (non-drag) = `LookAt(hitPt, 300)` to set pivot. |
+| **AppSettings** | +`EdgeHoverDetachColor`, `EdgeHoverAttachColor` in `View3DSettings` |
+| **SettingsDialog** | New "3D Edge Edit Mode" GroupBox with 2 color pickers |
+| **MainViewModel** | +`CurrentMesh`, +`EdgeHighlightModel`, +`HoverEdge/ClearEdgeHover`, +`BuildThinCylinder()` |
+
+---
+
 ## Session 23 Changes (archived from SESSION_PROGRESS)
 
 | Item | Detail |

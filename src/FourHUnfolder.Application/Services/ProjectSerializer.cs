@@ -23,10 +23,12 @@ public class ProjectSerializer
     // ── .4hu: save self-contained bundle ─────────────────────────────────────
 
     /// <summary>
-    /// Creates a .4hu ZIP bundle: embeds the mesh file, optional texture, and project state.
-    /// The resulting file is binary — not readable by text editors.
+    /// Creates a .4hu ZIP bundle: embeds the mesh file, optional per-material textures,
+    /// and project state.  The resulting file is binary — not readable by text editors.
     /// </summary>
-    public void SaveBundle(ProjectState state, string meshPath, string? texturePath, string outputPath)
+    public void SaveBundle(ProjectState state, string meshPath, string? texturePath,
+                           string outputPath,
+                           IReadOnlyDictionary<int, string?>? perMaterialTextures = null)
     {
         if (!File.Exists(meshPath))
             throw new FileNotFoundException($"Mesh file not found: {meshPath}");
@@ -36,9 +38,28 @@ public class ProjectSerializer
             : Path.GetExtension(texturePath).TrimStart('.').ToLowerInvariant();
 
         var copy = Clone(state);
-        copy.MeshPath         = null;
-        copy.TexturePath      = null;
-        copy.BundledTextureExt = textureExt;
+        copy.MeshPath                = null;
+        copy.TexturePath             = null;
+        copy.MaterialTexturePaths    = new();        // cleared; paths are embedded as files
+        copy.BundledTextureExt       = textureExt;
+        copy.BundledMaterialTextureExts = new();
+
+        // TD-22-2: record extension for each per-material texture that we're embedding
+        if (perMaterialTextures != null)
+        {
+            foreach (var (matId, path) in perMaterialTextures)
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path!))
+                {
+                    var ext = Path.GetExtension(path!).TrimStart('.').ToLowerInvariant();
+                    copy.BundledMaterialTextureExts[matId] = ext;
+                }
+                else
+                {
+                    copy.BundledMaterialTextureExts[matId] = null;
+                }
+            }
+        }
 
         using var fs      = File.Create(outputPath);
         using var archive = new ZipArchive(fs, ZipArchiveMode.Create, leaveOpen: false);
@@ -51,9 +72,22 @@ public class ProjectSerializer
         // mesh.obj
         AddFileToArchive(archive, meshPath, MeshEntry);
 
-        // texture (optional)
+        // fallback / legacy single texture (optional)
         if (!string.IsNullOrEmpty(texturePath) && !string.IsNullOrEmpty(textureExt) && File.Exists(texturePath))
             AddFileToArchive(archive, texturePath, $"{TexturePrefix}.{textureExt}");
+
+        // TD-22-2: per-material textures embedded as texture_<matId>.<ext>
+        if (perMaterialTextures != null)
+        {
+            foreach (var (matId, path) in perMaterialTextures)
+            {
+                if (!string.IsNullOrEmpty(path) && File.Exists(path!))
+                {
+                    var ext = Path.GetExtension(path!).TrimStart('.').ToLowerInvariant();
+                    AddFileToArchive(archive, path!, $"{TexturePrefix}_{matId}.{ext}");
+                }
+            }
+        }
     }
 
     private static void AddFileToArchive(ZipArchive archive, string sourcePath, string entryName)
@@ -94,10 +128,26 @@ public class ProjectSerializer
             ? Path.Combine(tempDir, MeshEntry)
             : null;
 
+        // Fallback / legacy single texture
         if (!string.IsNullOrEmpty(state.BundledTextureExt))
         {
             var texPath = Path.Combine(tempDir, $"{TexturePrefix}.{state.BundledTextureExt}");
             state.TexturePath = File.Exists(texPath) ? texPath : null;
+        }
+
+        // TD-22-2: restore per-material texture paths from embedded files
+        state.MaterialTexturePaths = new();
+        foreach (var (matId, ext) in state.BundledMaterialTextureExts)
+        {
+            if (!string.IsNullOrEmpty(ext))
+            {
+                var texPath = Path.Combine(tempDir, $"{TexturePrefix}_{matId}.{ext}");
+                state.MaterialTexturePaths[matId] = File.Exists(texPath) ? texPath : null;
+            }
+            else
+            {
+                state.MaterialTexturePaths[matId] = null;
+            }
         }
 
         if (state.MeshPath == null)
@@ -116,6 +166,11 @@ public class ProjectSerializer
         // Relativize paths
         copy.MeshPath    = Relativize(state.MeshPath,    dir);
         copy.TexturePath = Relativize(state.TexturePath, dir);
+
+        // TD-22-2: relativize per-material texture paths
+        copy.MaterialTexturePaths = new();
+        foreach (var (matId, path) in state.MaterialTexturePaths)
+            copy.MaterialTexturePaths[matId] = Relativize(path, dir);
 
         var json = JsonSerializer.Serialize(copy, JsonOpts);
         File.WriteAllText(filePath, json);
@@ -146,6 +201,12 @@ public class ProjectSerializer
             state.Warnings.Add($"Mesh file not found: {rawMesh}");
         if (!string.IsNullOrEmpty(rawTexture) && state.TexturePath == null)
             state.Warnings.Add($"Texture file not found: {rawTexture}");
+
+        // TD-22-2: resolve per-material texture paths
+        var resolvedMat = new Dictionary<int, string?>();
+        foreach (var (matId, encoded) in state.MaterialTexturePaths)
+            resolvedMat[matId] = Resolve(encoded, dir);
+        state.MaterialTexturePaths = resolvedMat;
 
         return state;
     }

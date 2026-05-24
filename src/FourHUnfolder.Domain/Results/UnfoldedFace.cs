@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 
 namespace FourHUnfolder.Domain.Results;
 
@@ -11,6 +11,7 @@ namespace FourHUnfolder.Domain.Results;
 public sealed class UnfoldedFace
 {
     public int     FaceId        { get; }
+    public int     MaterialId    { get; }     // TD-22-3: which material this face belongs to (-1 = none)
     public Vector2 V0            { get; }
     public Vector2 V1            { get; }
     public Vector2 V2            { get; }
@@ -28,9 +29,11 @@ public sealed class UnfoldedFace
                         Vector2 v0, Vector2 v1, Vector2 v2,
                         bool[]  edgeIsFold,
                         bool[]? edgeIsBoundary = null,
-                        Vector2[]? uvCoords    = null)
+                        Vector2[]? uvCoords    = null,
+                        int     materialId     = -1)
     {
         FaceId         = faceId;
+        MaterialId     = materialId;
         V0             = v0; V1 = v1; V2 = v2;
         EdgeIsFold     = edgeIsFold;
         EdgeIsBoundary = edgeIsBoundary ?? [false, false, false];
