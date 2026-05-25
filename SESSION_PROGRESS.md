@@ -1,6 +1,6 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-25 (session 30 — PDO import Phase 1 + Phase 2; branch `feat/pdo-import`)
+> **Last updated:** 2026-05-25 (session 31 — MCP code-graph server Phase 1-3; branch `feat/pdo-import`)
 > **Branch:** `feat/pdo-import`  (base: `main` @ v0.0.2.H)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -89,6 +89,21 @@ No circular dependencies. Domain has zero external dependencies.
 | `dotnet test` | ✅ 41 / 41 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App opens, PDO files visible in file dialog |
 | Published `4H-Unfolder.exe` v0.0.2.H (win-x64, self-contained) | ✅ Session 29 (PDO not yet in release) |
+
+---
+
+## Session 31 — Changes
+
+| Item | Detail |
+|------|--------|
+| **MCP code-graph server** | Global install at `~/.mcp-code-server/`: `indexer.py` (ctags → SQLite), `searcher.py` (6 query fns), `server.py` (FastMCP stdio, 7 tools), `watcher.py` (watchdog + 2s debounce auto-reindex) |
+| **Phase 0** | Prerequisites: Universal Ctags 6.1.0, Python 3.13.7, `mcp` 1.27.1, `watchdog` 6.0.0, `pipx` 1.12.0 |
+| **Phase 1** | Core server: `build_index` (ctags JSON + SQLite), `get_project_map`, `find_definition`, `get_file_outline`, `get_class_members`, `find_usages`, `search_code`, `reindex` |
+| **Phase 2** | File watcher: `watchdog` Observer + debounce handler; `threading.Lock` guards DB conn; `_on_source_changed()` logs to stderr (not stdout) |
+| **Phase 3 — UNFOLD apply** | `.mcp-project.json` (include `src/**/*.cs` + `tests/**/*.cs`), `.claude/mcp.json`, `CLAUDE.md` (MCP workflow guide + token-cost table + tech-debt table), `.gitignore` += `.mcp-index.db` |
+| **Index result** | 61 files, 951 symbols; `find_definition` → exact file:line; `find_usages("BuildWpfModel")` immediately reveals CRITICAL-3D-TEX call sites (lines 1322, 1336) |
+| **Token savings** | Session start: 333 tok vs ~10 000 tok; class overview: ~325 tok vs ~2 400 tok; definition lookup: ~30 tok vs ~6 000 tok |
+| **Commits pushed** | `2e6fb42` — chore: CLAUDE.md + MCP config (Phase 3) |
 
 ---
 
