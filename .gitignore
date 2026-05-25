@@ -35,3 +35,6 @@ dist/
 
 # Claude Code workspace files
 .claude/
+
+# MCP code-graph index (auto-generated, not for version control)
+.mcp-index.db

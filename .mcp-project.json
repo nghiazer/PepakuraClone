@@ -1,0 +1,6 @@
+{
+  "name": "4H-Unfolder",
+  "language": "csharp",
+  "include": ["src/**/*.cs", "tests/**/*.cs"],
+  "exclude": ["**/bin/**", "**/obj/**", "**/publish/**", "**/publish_small/**"]
+}
