@@ -103,8 +103,8 @@ public sealed class PdoMeshLoader : IMeshLoader
             uint shapeCount = reader.ReadUInt32();
             for (uint si = 0; si < shapeCount; si++)
             {
-                reader.ReadInt32();              // unk11
-                reader.ReadUInt32();             // part (2-D part index)
+                int  materialId = reader.ReadInt32();  // unk11 = material/texture index
+                reader.ReadUInt32();                   // part (2-D part index) — Phase C
                 reader.BaseStream.Seek(32, SeekOrigin.Current); // 4×double unk12
 
                 uint ptCount   = reader.ReadUInt32();
@@ -116,12 +116,13 @@ public sealed class PdoMeshLoader : IMeshLoader
                     // vertex index (0-based within this geo → add vtxBase for global)
                     indices[pi] = (int)reader.ReadUInt32() + vtxBase; // 4 bytes
 
-                    // coord: 2D paper layout (mm) — skip, not texture UV
+                    // coord: 2D paper layout (mm) — skip for now (Phase C)
                     reader.BaseStream.Seek(16, SeekOrigin.Current);   // 16 bytes
 
-                    // unk13: texture UV in [0,1]
+                    // unk13: texture UV
+                    // PDO stores UV with Y=0 at top; WPF/OpenGL expect Y=0 at bottom → flip V
                     float u = (float)reader.ReadDouble();              // 8 bytes
-                    float v = (float)reader.ReadDouble();              // 8 bytes
+                    float v = 1.0f - (float)reader.ReadDouble();       // 8 bytes — Y-flip
                     mesh.UVs.Add(new Vector2(u, v));
                     uvIndices[pi] = mesh.UVs.Count - 1;
 
@@ -135,7 +136,8 @@ public sealed class PdoMeshLoader : IMeshLoader
                 {
                     for (int ti = 1; ti < (int)ptCount - 1; ti++)
                         mesh.AddFace(indices[0], indices[ti], indices[ti + 1],
-                                     uvIndices[0], uvIndices[ti], uvIndices[ti + 1]);
+                                     uvIndices[0], uvIndices[ti], uvIndices[ti + 1],
+                                     materialId);  // B2: pass material ID per shape
                 }
             }
 
@@ -172,6 +174,16 @@ public sealed class PdoMeshLoader : IMeshLoader
         catch
         {
             // Texture section is optional; silently ignore parse errors.
+        }
+
+        // ── 6. Populate material names from embedded textures ─────────────
+        // Faces carry materialId = unk11 (0-based texture index).
+        // Setting MaterialNames lets RebuildMaterialSlots create per-texture slots
+        // that map materialId → EmbeddedTextures[i] correctly.
+        foreach (var tex in mesh.EmbeddedTextures)
+        {
+            mesh.MaterialNames.Add(tex.Name);
+            mesh.MaterialTexturePaths.Add(null); // embedded — no file path
         }
 
         return mesh;
