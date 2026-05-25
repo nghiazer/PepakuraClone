@@ -29,4 +29,9 @@ publish_small/
 
 # Installer output
 dist/
-.claude/settings.local.json
+
+# Sample / test PDO files (large binary assets, not tracked)
+*.pdo
+
+# Claude Code workspace files
+.claude/
