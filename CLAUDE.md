@@ -76,9 +76,9 @@ the exact line from `find_definition`.
 
 ---
 
-## Tech debt & known issues (branch `feat/pdo-import`, as of v0.0.3.A)
+## Tech debt & known issues (branch `feat/pdo-import`, as of v0.0.3.B)
 
-### Fixed (session 30–32)
+### Fixed (session 30–34)
 | ID | Fixed in | Description |
 |----|----------|-------------|
 | ~~CRITICAL-3D-TEX~~ | s32 | `EnterPreview`/`CommitPreview` now pass `_materialBitmaps` to `BuildWpfModel` |
@@ -86,13 +86,12 @@ the exact line from `find_definition`.
 | ~~TD-PDO-2~~ | s31 | Multi-texture PDO: per-face material via `unk11`; `RebuildMaterialSlots` uses embedded textures by index |
 | ~~BUG-PDO-1~~ | s33 | `ModelOrientationDialog` skipped for PDO with layout → prevented UV double-flip |
 | ~~BUG-PDO-2~~ | s33 | `texNote` now reflects embedded textures when no file-path texture is present |
+| ~~TD-PDO-3~~ | s34 | Pre-geo seek: `Seek(120, Current)` → `Seek(154+localeLen+commentLen, Begin)` — absolute formula |
+| ~~TD-PDO-4~~ | s34 | `BitmapFromEmbedded` split into cached wrapper + core; `_embeddedBitmapCache` cleared on mesh load |
+| ~~TD-25-1~~ | s34 | `ModelOrientationDialog` — "Don't ask again" checkbox added; persisted to `AppSettings.General` |
 
 ### Open
-| ID | Priority | Description |
-|----|----------|-------------|
-| TD-PDO-3 | 🟢 | 120-byte pre-geo skip hardcoded; should compute from header fields |
-| TD-PDO-4 | 🟢 | `BitmapFromEmbedded` called per-slot with no caching; slow for 2048² textures on repeated `RebuildMaterialSlots` |
-| TD-25-1  | 🟢 | `ModelOrientationDialog` — no "don't ask again" checkbox |
+*(no open tech debt as of v0.0.3.B)*
 
 ---
 

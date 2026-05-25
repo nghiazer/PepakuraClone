@@ -143,5 +143,9 @@ public sealed class AppSettings
 
         /// UI colour scheme: "Light" or "Dark"
         public string ThemeMode   { get; set; } = "Light";
+
+        /// TD-25-1: If true, ModelOrientationDialog is skipped on mesh load.
+        /// Identity orientation + no UV flip is assumed.
+        public bool SkipModelOrientationDialog { get; set; } = false;
     }
 }

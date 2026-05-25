@@ -15,6 +15,9 @@ public partial class ModelOrientationDialog : Window
     /// <summary>True = user clicked OK; False = user clicked Skip (no transform applied).</summary>
     public bool Applied { get; private set; }
 
+    /// <summary>TD-25-1: True if the user checked "Don't ask again" before closing.</summary>
+    public bool DontAskAgain => ChkDontAskAgain.IsChecked == true;
+
     // ── live preview state ────────────────────────────────────────────────────
     private readonly MatrixTransform3D _liveTransform = new(Matrix3D.Identity);
     private readonly ModelVisual3D     _meshVisual    = new();

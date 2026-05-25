@@ -34,6 +34,7 @@
             <RowDefinition Height="Auto"/>  <!-- title -->
             <RowDefinition Height="*"/>     <!-- viewer + controls -->
             <RowDefinition Height="Auto"/>  <!-- flip uv -->
+            <RowDefinition Height="Auto"/>  <!-- don't ask again -->
             <RowDefinition Height="Auto"/>  <!-- buttons -->
         </Grid.RowDefinitions>
 
@@ -158,8 +159,17 @@
             </StackPanel>
         </Border>
 
+        <!-- ── Don't ask again ─────────────────────── -->
+        <!-- TD-25-1: persisted to AppSettings.General.SkipModelOrientationDialog -->
+        <CheckBox x:Name="ChkDontAskAgain"
+                  Grid.Row="3"
+                  Content="Don't ask again (always load with current settings)"
+                  Margin="0,10,0,0"
+                  IsChecked="False"
+                  ToolTip="Suppresses this dialog on future loads. Reset via Settings → General."/>
+
         <!-- ── Buttons ──────────────────────────────── -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right"
                     Margin="0,12,0,0">
             <!-- TD-27-3: disable OK when axes are parallel -->
             <Button Content="  OK  " Width="80" Height="30"

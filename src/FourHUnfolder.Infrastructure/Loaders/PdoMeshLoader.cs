@@ -73,10 +73,25 @@ public sealed class PdoMeshLoader : IMeshLoader
         uint commentLen = reader.ReadUInt32();    // abs 70 — byte count
         reader.BaseStream.Seek(commentLen, SeekOrigin.Current); // skip comment
 
-        // ── 3. Skip pre-geometry settings (120 bytes, fixed for PD6) ──────
-        // Verified across 3 sample PDO files: geo_count always sits at
-        // abs 74 + commentLen + 120  (= abs 500 when commentLen = 306).
-        reader.BaseStream.Seek(120, SeekOrigin.Current);
+        // ── 3. Skip pre-geometry settings block ───────────────────────────
+        // TD-PDO-3: use absolute offset derived from header field trace instead of
+        // a relative "skip 120 bytes" that depends on the stream position being exact.
+        //
+        // Header byte-trace (all offsets absolute from file start):
+        //   abs  0 : signature "version 3\n"           — 10 bytes
+        //   abs 10 : locked(4) + unk1(4) + version(4)  — 12 bytes
+        //   abs 22 : localeLen(4) + locale(localeLen)
+        //   abs 26+localeLen : key(4) + commentLen(4) + comment(commentLen)
+        //   abs 34+localeLen+commentLen : 120-byte pre-geo settings block
+        //   abs 154+localeLen+commentLen : geoCount ← Seek here
+        //
+        // (Previous hardcoded Seek(120, Current) assumed localeLen=40 which is standard
+        // for PD6 but not guaranteed; this formula is valid for any localeLen.)
+        //
+        // The 120-byte block's internal structure is not yet reverse-engineered;
+        // it contains display/page settings not needed for geometry parsing.
+        long geoStart = 154L + localeLen + commentLen;
+        reader.BaseStream.Seek(geoStart, SeekOrigin.Begin);
 
         // ── 4. Geometry ───────────────────────────────────────────────────
         var  mesh      = new Mesh();

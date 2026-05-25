@@ -104,6 +104,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // cached loaded bitmaps per materialId (rebuilt when slots change)
     private readonly Dictionary<int, BitmapImage?> _materialBitmaps = new();
 
+    // TD-PDO-4: cache decoded embedded bitmaps; keyed by EmbeddedTextures index.
+    // Cleared when a new mesh is loaded to avoid holding stale bitmap data.
+    private readonly Dictionary<int, BitmapImage?> _embeddedBitmapCache = new();
+
     // ── Feature B: expose mesh for edge hover in code-behind ─────────────────
     /// Read-only access to the current loaded mesh (used by MainWindow for screen-space edge hover).
     public Mesh? CurrentMesh => _currentMesh;
@@ -437,6 +441,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _edgeOverrides.Clear();
             _undoStack.Clear();
             _redoStack.Clear();
+            _embeddedBitmapCache.Clear(); // TD-PDO-4: stale bitmaps from previous mesh
             NotifyUndoRedo();
             InvalidateOverlayCache();
 
@@ -446,13 +451,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
             // Skip for PDO files with a pre-computed 2-D layout: the layout coords are
             // paper-space (mm) and are independent of the 3-D transform, BUT FlipUV would
             // double-flip the UVs that the PDO loader already inverted (BUG-PDO-1).
-            if (_currentMesh.PdoLayout == null)
+            // TD-25-1: also skip when the user previously chose "Don't ask again".
+            if (_currentMesh.PdoLayout == null &&
+                !_settingsService.Current.General.SkipModelOrientationDialog)
             {
                 var orientDlg = new Dialogs.ModelOrientationDialog(_currentMesh)
                 {
                     Owner = WpfApp.Current.MainWindow
                 };
                 orientDlg.ShowDialog();
+
+                // TD-25-1: persist "don't ask again" immediately so next load skips the dialog
+                if (orientDlg.DontAskAgain)
+                {
+                    _settingsService.Current.General.SkipModelOrientationDialog = true;
+                    _settingsService.SaveCurrent();
+                }
+
                 if (orientDlg.Applied)
                 {
                     var rot = orientDlg.Result.ComputeRotation();
@@ -1400,7 +1415,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             // Prefer a file-based texture; fall back to PDO embedded texture.
             var bmp  = LoadBitmapImage(mesh.SuggestedTexturePath)
                        ?? (mesh.EmbeddedTextures.Count > 0
-                           ? BitmapFromEmbedded(mesh.EmbeddedTextures[0])
+                           ? BitmapFromEmbedded(mesh.EmbeddedTextures, 0)
                            : null);
             var slot = new MaterialTextureViewModel(-1, "Default", mesh.SuggestedTexturePath, bmp);
             MaterialTextureSlots.Add(slot);
@@ -1416,7 +1431,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 // For PDO multi-texture: if no file path, check embedded by index
                 var bmp  = LoadBitmapImage(path)
                            ?? (path == null && i < mesh.EmbeddedTextures.Count
-                               ? BitmapFromEmbedded(mesh.EmbeddedTextures[i])
+                               ? BitmapFromEmbedded(mesh.EmbeddedTextures, i)
                                : null);
                 var slot = new MaterialTextureViewModel(i, mesh.MaterialNames[i], path, bmp);
                 MaterialTextureSlots.Add(slot);
@@ -1426,9 +1441,23 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Converts raw RGB24 embedded texture data to a frozen WPF BitmapImage.
+    /// TD-PDO-4: Cached wrapper — returns the BitmapImage for EmbeddedTextures[index],
+    /// building it only on first access. Subsequent calls return the cached result.
+    /// Cache is keyed by texture index and cleared when a new mesh is loaded.
     /// </summary>
-    private static BitmapImage? BitmapFromEmbedded(EmbeddedTextureData emb)
+    private BitmapImage? BitmapFromEmbedded(IReadOnlyList<EmbeddedTextureData> textures, int index)
+    {
+        if (_embeddedBitmapCache.TryGetValue(index, out var cached)) return cached;
+        var result = BitmapFromEmbeddedCore(textures[index]);
+        _embeddedBitmapCache[index] = result;
+        return result;
+    }
+
+    /// <summary>
+    /// Converts raw RGB24 embedded texture data to a frozen WPF BitmapImage.
+    /// Called at most once per texture index per mesh lifetime (see <see cref="BitmapFromEmbedded"/>).
+    /// </summary>
+    private static BitmapImage? BitmapFromEmbeddedCore(EmbeddedTextureData emb)
     {
         try
         {
