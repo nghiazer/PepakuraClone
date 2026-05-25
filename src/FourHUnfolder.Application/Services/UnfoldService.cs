@@ -12,13 +12,14 @@ namespace FourHUnfolder.Application.Services;
 /// </summary>
 public class UnfoldService
 {
-    private readonly DualGraphBuilder  _graphBuilder    = new();
-    private readonly KruskalMstBuilder _mstBuilder      = new();
-    private readonly EdgeMarker        _edgeMarker      = new();
-    private readonly UnfoldEngine      _unfoldEngine    = new();
-    private readonly OverlapDetector   _overlapDetector = new();
-    private readonly GlueTabGenerator  _tabGenerator    = new();
-    private readonly PieceComputer     _pieceComputer   = new();
+    private readonly DualGraphBuilder   _graphBuilder    = new();
+    private readonly KruskalMstBuilder  _mstBuilder      = new();
+    private readonly EdgeMarker         _edgeMarker      = new();
+    private readonly UnfoldEngine       _unfoldEngine    = new();
+    private readonly OverlapDetector    _overlapDetector = new();
+    private readonly GlueTabGenerator   _tabGenerator    = new();
+    private readonly PieceComputer      _pieceComputer   = new();
+    private readonly PdoUnfoldBuilder   _pdoBuilder      = new();
 
     /// <param name="mesh">The mesh to unfold (edge Types will be written).</param>
     /// <param name="edgeOverrides">
@@ -70,6 +71,44 @@ public class UnfoldService
         }
 
         return new UnfoldResult(rawResult.Faces, tabs, hasOverlaps, cutEdgePairIds);
+    }
+
+    /// <summary>
+    /// Restores the pre-computed 2-D layout from a PDO file into an <see cref="UnfoldResult"/>
+    /// without running the MST/BFS pipeline.
+    /// Returns <c>null</c> when the mesh has no PDO layout data.
+    /// </summary>
+    public UnfoldResult? TryBuildFromPdoLayout(
+        Mesh mesh,
+        AppSettings.PrintSettings? printSettings = null)
+    {
+        if (mesh.PdoLayout is null) return null;
+
+        // Build UnfoldedFace list + classify edges using part-index comparison
+        var faces = _pdoBuilder.Build(mesh);
+
+        // Generate glue tabs on cut edges
+        var tabs = _tabGenerator.Generate(
+            faces,
+            (float)(printSettings?.GlueTabDepthMm      ?? 5.0),
+            (float)(printSettings?.GlueTabSideAngleDeg ?? 45.0),
+            printSettings?.GlueTabShape   ?? "Trapezoid",
+            printSettings?.AlternateFlaps ?? false,
+            mesh);
+
+        // Overlap detection (PDO layouts are always valid, but check anyway)
+        var hasOverlaps = _overlapDetector.HasOverlaps(faces);
+
+        // Assign 1-based IDs to cut edge pairs
+        var cutEdgePairIds = new Dictionary<int, int>();
+        int pairCounter = 0;
+        foreach (var edge in mesh.Edges)
+        {
+            if (edge.FaceB >= 0 && edge.Type == EdgeType.Cut)
+                cutEdgePairIds[edge.Id] = ++pairCounter;
+        }
+
+        return new UnfoldResult(faces, tabs, hasOverlaps, cutEdgePairIds);
     }
 
     /// Returns the connected components (pieces) for an already-marked mesh.

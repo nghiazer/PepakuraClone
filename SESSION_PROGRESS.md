@@ -1,7 +1,7 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-25 (session 30 — PDO import Phase 1 + Phase 2; branch `feat/pdo-import`)
-> **Branch:** `feat/pdo-import`  (base: `main` @ v0.0.2.H)
+> **Last updated:** 2026-05-25 (session 33 — review + bugfix + publish v0.0.3.A; branch `feat/pdo-import`)
+> **Branch:** `feat/pdo-import`  (base: `main` @ v0.0.2.H → releasing as v0.0.3.A)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
 > **History archive:** see [`BUGS_HISTORY.md`](BUGS_HISTORY.md) for all prior bug/tech-debt records
@@ -86,9 +86,60 @@ No circular dependencies. Domain has zero external dependencies.
 | Item | Result |
 |------|--------|
 | `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 4 warnings (NuGet NU1603 only) |
-| `dotnet test` | ✅ 41 / 41 passed |
-| `dotnet run --project src/FourHUnfolder.App` | ✅ App opens, PDO files visible in file dialog |
-| Published `4H-Unfolder.exe` v0.0.2.H (win-x64, self-contained) | ✅ Session 29 (PDO not yet in release) |
+| `dotnet test` | ✅ 56 / 56 passed |
+| `dotnet run --project src/FourHUnfolder.App` | ✅ App opens, PDO files auto-unfold on load |
+| Published `4H-Unfolder.exe` **v0.0.3.A** (win-x64, self-contained) | ✅ Session 33 |
+
+---
+
+## Session 33 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Review & audit** | Scanned all .cs files for TODO/FIXME/TD-/CRITICAL markers; classified open vs fixed tech debt |
+| **BUG-PDO-1 fix** | `ModelOrientationDialog` now skipped for PDO with pre-computed layout — prevented UV double-flip (loader already inverts V; dialog FlipUV would re-invert to wrong orientation) |
+| **BUG-PDO-2 fix** | `texNote` in status bar now shows embedded texture count when no file-path texture present |
+| **Version bump** | `0.0.2.H → 0.0.3.A`; `AssemblyVersion`/`FileVersion`/`InformationalVersion` added to App.csproj; window title updated |
+| **Publish v0.0.3.A** | `dotnet publish -r win-x64 --self-contained true -p:PublishSingleFile=true` → `publish/4H-Unfolder.exe` |
+| **CLAUDE.md** | Tech debt table updated: fixed items marked struck-through; 3 open items remain (TD-PDO-3/4, TD-25-1) |
+| **Tests** | 56 / 56 pass (no new tests needed — bug fixes are in UI/UX path, covered by existing loader tests) |
+
+### Tech debt summary (v0.0.3.A)
+
+| ID | Priority | Status | Description |
+|----|----------|--------|-------------|
+| TD-PDO-3 | 🟢 low | open | 120-byte pre-geo skip hardcoded |
+| TD-PDO-4 | 🟢 low | open | `BitmapFromEmbedded` no caching |
+| TD-25-1  | 🟢 low | open | `ModelOrientationDialog` — no "don't ask again" |
+
+---
+
+## Session 32 — Changes
+
+| Item | Detail |
+|------|--------|
+| **PDO Phase C — PdoLayout extraction** | New `PdoLayout.cs` / `PdoFace` record in Domain.Models. `PdoMeshLoader` now reads each point's `coord` doubles (paper-mm) and shape's `part` uint32; fan-triangulates into `PdoFace` records → `mesh.PdoLayout` |
+| **PDO Phase D — Unfold restore** | New `PdoUnfoldBuilder.cs` (Geometry): edge classification by part-index (same→Fold, diff→Cut, boundary→Boundary), builds `UnfoldedFace` list with 2D coords from PdoLayout — no BFS/MST needed |
+| **`UnfoldService.TryBuildFromPdoLayout`** | Calls `PdoUnfoldBuilder` + `GlueTabGenerator` + `OverlapDetector` + cuts `cutEdgePairIds`; returns `UnfoldResult`. Null when `mesh.PdoLayout == null` |
+| **`MainViewModel` auto-unfold** | After PDO load, if `PdoLayout != null`: calls `TryBuildFromPdoLayout(scale=1.0)` → `RebuildPieces` → `RunAutoArrange` → `IsUnfolded=true` / `CanExport=true`; status shows piece count |
+| **Fix CRITICAL-3D-TEX** | `EnterPreview()` and `CommitPreview()` both now pass `_materialBitmaps` to `BuildWpfModel`; PDO embedded textures and OBJ multi-material textures no longer lost after preview cycle |
+| **Tests** | 11 new `PdoUnfoldBuilderTests`: face count, 2D coord preservation, Fold/Cut/Boundary classification (unit + real-file integration); 56/56 suite green |
+| **Commits pushed** | `3fcc1bd` — feat+fix: PDO import Phase 3+4 — 2D layout restore + CRITICAL-3D-TEX fix |
+
+---
+
+## Session 31 — Changes
+
+| Item | Detail |
+|------|--------|
+| **MCP code-graph server** | Global install at `~/.mcp-code-server/`: `indexer.py` (ctags → SQLite), `searcher.py` (6 query fns), `server.py` (FastMCP stdio, 7 tools), `watcher.py` (watchdog + 2s debounce auto-reindex) |
+| **Phase 0** | Prerequisites: Universal Ctags 6.1.0, Python 3.13.7, `mcp` 1.27.1, `watchdog` 6.0.0, `pipx` 1.12.0 |
+| **Phase 1** | Core server: `build_index` (ctags JSON + SQLite), `get_project_map`, `find_definition`, `get_file_outline`, `get_class_members`, `find_usages`, `search_code`, `reindex` |
+| **Phase 2** | File watcher: `watchdog` Observer + debounce handler; `threading.Lock` guards DB conn; `_on_source_changed()` logs to stderr (not stdout) |
+| **Phase 3 — UNFOLD apply** | `.mcp-project.json` (include `src/**/*.cs` + `tests/**/*.cs`), `.claude/mcp.json`, `CLAUDE.md` (MCP workflow guide + token-cost table + tech-debt table), `.gitignore` += `.mcp-index.db` |
+| **Index result** | 61 files, 951 symbols; `find_definition` → exact file:line; `find_usages("BuildWpfModel")` immediately reveals CRITICAL-3D-TEX call sites (lines 1322, 1336) |
+| **Token savings** | Session start: 333 tok vs ~10 000 tok; class overview: ~325 tok vs ~2 400 tok; definition lookup: ~30 tok vs ~6 000 tok |
+| **Commits pushed** | `2e6fb42` — chore: CLAUDE.md + MCP config (Phase 3) |
 
 ---
 

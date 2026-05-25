@@ -35,6 +35,13 @@ public sealed class Mesh
     /// Suggested texture path per material (parallel to MaterialNames). Null = no texture.
     public List<string?> MaterialTexturePaths { get; } = new();
 
+    /// <summary>
+    /// Pre-computed 2-D paper layout from a PDO file (null for all other formats).
+    /// When present, the paper-space positions stored here can be used to reconstruct
+    /// the unfolded state without running the UnfoldEngine.
+    /// </summary>
+    public PdoLayout? PdoLayout { get; set; }
+
     // Maps canonical (min,max) vertex pair → edge index
     private readonly Dictionary<(int, int), int> _edgeMap = new();
 

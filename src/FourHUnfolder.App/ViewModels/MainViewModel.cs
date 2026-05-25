@@ -442,19 +442,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             CancelPreviewSilently();
 
-            // Feature A: Model orientation dialog — pass mesh for live preview
-            var orientDlg = new Dialogs.ModelOrientationDialog(_currentMesh)
+            // Feature A: Model orientation dialog.
+            // Skip for PDO files with a pre-computed 2-D layout: the layout coords are
+            // paper-space (mm) and are independent of the 3-D transform, BUT FlipUV would
+            // double-flip the UVs that the PDO loader already inverted (BUG-PDO-1).
+            if (_currentMesh.PdoLayout == null)
             {
-                Owner = WpfApp.Current.MainWindow
-            };
-            orientDlg.ShowDialog();
-            if (orientDlg.Applied)
-            {
-                var rot = orientDlg.Result.ComputeRotation();
-                if (rot != System.Numerics.Matrix4x4.Identity)
-                    _currentMesh.ApplyTransform(rot);
-                if (orientDlg.Result.FlipUV)
-                    _currentMesh.FlipUVsVertical();
+                var orientDlg = new Dialogs.ModelOrientationDialog(_currentMesh)
+                {
+                    Owner = WpfApp.Current.MainWindow
+                };
+                orientDlg.ShowDialog();
+                if (orientDlg.Applied)
+                {
+                    var rot = orientDlg.Result.ComputeRotation();
+                    if (rot != System.Numerics.Matrix4x4.Identity)
+                        _currentMesh.ApplyTransform(rot);
+                    if (orientDlg.Result.FlipUV)
+                        _currentMesh.FlipUVsVertical();
+                }
             }
 
             _committedTexturePath = _currentMesh.SuggestedTexturePath;
@@ -471,7 +477,47 @@ public partial class MainViewModel : ObservableObject, IDisposable
             UpdateTextureUI(tex, _committedTexturePath, isPreview: false);
             RefreshDerivedVisibility();
 
-            var texNote = _committedTexturePath != null ? " · texture from MTL" : string.Empty;
+            // BUG-PDO-2: embedded-texture PDOs have no file path, so check both sources
+            var texNote = _committedTexturePath != null
+                ? " · texture from MTL"
+                : _currentMesh.EmbeddedTextures.Count > 0
+                    ? $" · {_currentMesh.EmbeddedTextures.Count} embedded texture(s)"
+                    : string.Empty;
+
+            // ── Auto-unfold PDO files that carry a pre-computed 2-D layout ────
+            if (_currentMesh.PdoLayout != null)
+            {
+                try
+                {
+                    StatusText = "Restoring PDO layout …";
+                    var pdoResult = _unfoldService.TryBuildFromPdoLayout(
+                        _currentMesh, _settingsService.Current.Print);
+
+                    if (pdoResult != null)
+                    {
+                        ScaleMmPerUnit = 1.0;  // PDO coords are already in mm
+                        var pieces = _unfoldService.ComputePieces(_currentMesh);
+                        RebuildPieces(pdoResult, pieces, 1.0);
+                        RunAutoArrange();
+
+                        CanExport  = true;
+                        IsUnfolded = true;
+                        RefreshColumnBindings();
+
+                        var parts   = _currentMesh.PdoLayout.PartIndices.Count;
+                        StatusText = $"Loaded (PDO) — {_currentMesh.Faces.Count:N0} faces, " +
+                                     $"{parts} piece(s){texNote}.";
+                        MarkClean();
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Non-fatal: fall through to normal status text
+                    StatusText = $"PDO layout restore failed: {ex.Message}";
+                }
+            }
+
             StatusText = $"Loaded — {_currentMesh.Faces.Count:N0} faces, " +
                          $"{_currentMesh.Vertices.Count:N0} vertices{texNote}.";
             MarkClean(); // fresh mesh = clean state
@@ -1319,7 +1365,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _pendingTexturePath = previewPath;
         _previewActive      = true;
         var tex = LoadBitmapImage(previewPath);
-        MeshModel = BuildWpfModel(_currentMesh!, tex);
+        MeshModel = BuildWpfModel(_currentMesh!, tex, _materialBitmaps);
         UpdateTextureUI(tex, previewPath, isPreview: true);
         RefreshDerivedVisibility();
     }
@@ -1333,7 +1379,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var tex  = LoadBitmapImage(path);
         _previewActive      = false;
         _pendingTexturePath = null;
-        if (_currentMesh != null) MeshModel = BuildWpfModel(_currentMesh, tex);
+        if (_currentMesh != null) MeshModel = BuildWpfModel(_currentMesh, tex, _materialBitmaps);
         UpdateTextureUI(tex, path, isPreview: false);
         RefreshDerivedVisibility();
         StatusText = revert

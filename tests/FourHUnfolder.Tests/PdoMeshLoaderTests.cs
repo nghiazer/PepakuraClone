@@ -131,6 +131,70 @@ public class PdoMeshLoaderTests
         mesh.EmbeddedTextures[1].Height.Should().Be(2880);
     }
 
+    // ── Phase B: material ID + UV-flip tests ─────────────────────────────
+
+    [Fact]
+    public void SoundEmitter_AllFacesHaveMaterialId0()
+    {
+        var path = Pdo("SoundEmitterObject.pdo");
+        if (!Exists(path)) return;
+
+        var mesh = new PdoMeshLoader().Load(path);
+
+        // unk11=0 for every shape → all triangles must carry MaterialId=0
+        mesh.Faces.Should().OnlyContain(f => f.MaterialId == 0,
+            "SoundEmitter has one texture; every shape has unk11=0");
+    }
+
+    [Fact]
+    public void SoundEmitter_MaterialNamesMatchEmbeddedTexture()
+    {
+        var path = Pdo("SoundEmitterObject.pdo");
+        if (!Exists(path)) return;
+
+        var mesh = new PdoMeshLoader().Load(path);
+
+        mesh.MaterialNames.Should().HaveCount(1,
+            "one embedded texture → one material name");
+        mesh.MaterialNames[0].Should().Be("soundemitter");
+        mesh.MaterialTexturePaths.Should().HaveCount(1);
+        mesh.MaterialTexturePaths[0].Should().BeNull("embedded texture has no file path");
+    }
+
+    [Fact]
+    public void Pillar_FacesHaveBothMaterialIds()
+    {
+        var path = Pdo("Pillar.pdo");
+        if (!Exists(path)) return;
+
+        var mesh = new PdoMeshLoader().Load(path);
+
+        // Probe confirmed: unk11=0 (12 shapes) and unk11=1 (240 shapes)
+        var ids = mesh.Faces.Select(f => f.MaterialId).Distinct().Order().ToList();
+        ids.Should().Equal(new[] { 0, 1 }, "Pillar has 2 materials (unk11 values 0 and 1)");
+
+        mesh.MaterialNames.Should().HaveCount(2, "two embedded textures → two material names");
+    }
+
+    [Fact]
+    public void AllFiles_UVsAreFiniteAfterFlip()
+    {
+        // After Y-flip (v = 1-v), UVs may go outside [0,1] for tiling textures
+        // but must always be finite (no NaN/Inf).
+        foreach (var name in new[] { "SoundEmitterObject.pdo", "waluigiblimp.pdo", "Pillar.pdo" })
+        {
+            var path = Pdo(name);
+            if (!Exists(path)) continue;
+
+            var mesh = new PdoMeshLoader().Load(path);
+            foreach (var uv in mesh.UVs)
+            {
+                float.IsFinite(uv.X).Should().BeTrue($"UV.X finite in {name}");
+                float.IsFinite(uv.Y).Should().BeTrue($"UV.Y finite in {name} after Y-flip");
+            }
+        }
+    }
+
     // ── Invalid signature guard ──────────────────────────────────────────
 
     [Fact]
