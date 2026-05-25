@@ -102,3 +102,29 @@ the exact line from `find_definition`.
 - Tests live in `tests/FourHUnfolder.Tests/` — run after every change
 - Settings persisted to `%AppData%\4H-Unfolder\settings.json`
 - Project bundle format: `.4hu` = ZIP(mesh + textures + state JSON)
+
+## Publish & Archive — WPF native DLL rule
+
+WPF self-contained single-file apps do **NOT** bundle native DLLs into the exe.
+The following files must exist in the **same directory** as the exe or the app will crash with
+`DllNotFoundException` before showing any window:
+
+```
+wpfgfx_cor3.dll           ← WPF graphics backend (required)
+PresentationNative_cor3.dll
+D3DCompiler_47_cor3.dll
+PenImc_cor3.dll
+vcruntime140_cor3.dll
+assimp.dll                ← AssimpNet native (required for multi-format load)
+```
+
+**Archive command (correct):**
+```bash
+cp publish/4H-Unfolder.exe publish/vX.X.X.Y/
+cp publish/*.dll           publish/vX.X.X.Y/
+```
+
+Never copy only the exe — the archive folder will appear to "suspend" immediately when launched.
+
+**Symptom of missing DLLs:** process appears in Task Manager → Background processes → Suspended,
+no window ever shown. Event Log shows `DllNotFoundException` in `HwndSubclass.SubclassWndProc`.
