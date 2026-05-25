@@ -160,7 +160,7 @@
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Button Style="{StaticResource IconBtn}" Content="📂"
                         Command="{Binding LoadMeshCommand}"
-                        ToolTip="Load Mesh (.obj)"/>
+                        ToolTip="Load Mesh (.obj, .pdo, .fbx, .stl, …)"/>
                 <Separator/>
                 <Button Style="{StaticResource IconBtn}" Content="⚙"
                         Command="{Binding UnfoldCommand}" IsEnabled="{Binding CanUnfold}"

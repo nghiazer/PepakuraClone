@@ -412,8 +412,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var dlg = new OpenFileDialog
         {
             Title  = "Open 3D Mesh",
-            Filter = "All supported meshes (*.obj;*.3ds;*.stl;*.dxf;*.lwo;*.lws;*.fbx;*.dae;*.ply)|*.obj;*.3ds;*.stl;*.dxf;*.lwo;*.lws;*.fbx;*.dae;*.ply" +
+            Filter = "All supported meshes (*.obj;*.pdo;*.3ds;*.stl;*.dxf;*.lwo;*.lws;*.fbx;*.dae;*.ply)|*.obj;*.pdo;*.3ds;*.stl;*.dxf;*.lwo;*.lws;*.fbx;*.dae;*.ply" +
                      "|Wavefront OBJ (*.obj)|*.obj" +
+                     "|Pepakura Designer (*.pdo)|*.pdo" +
                      "|3D Studio (*.3ds)|*.3ds" +
                      "|STL (*.stl)|*.stl" +
                      "|AutoCAD DXF (*.dxf)|*.dxf" +
