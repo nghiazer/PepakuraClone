@@ -1,7 +1,7 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-24 (session 28 — Light/Dark theme system + icon resize/rounding; publish v0.0.2.G)
-> **Branch:** `feat/animation-fold-texture`  (new branch for session 28+)
+> **Last updated:** 2026-05-25 (session 30 — PDO import Phase 1 + Phase 2; branch `feat/pdo-import`)
+> **Branch:** `feat/pdo-import`  (base: `main` @ v0.0.2.H)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
 > **History archive:** see [`BUGS_HISTORY.md`](BUGS_HISTORY.md) for all prior bug/tech-debt records
@@ -35,6 +35,7 @@ No circular dependencies. Domain has zero external dependencies.
 | Step | Class | Notes |
 |------|-------|-------|
 | OBJ load | `ObjMeshLoader` | v/vt/f, multi-material MTL (newmtl/usemtl/map_Kd), fan-triangulation |
+| PDO load | `PdoMeshLoader` | Pepakura Designer v3/PD6: header, cipher, vertices, UV, shapes, zlib texture |
 | Multi-format | `AssimpMeshLoader` + `MultiFormatMeshLoader` | 3DS, STL, DXF, LWO/LWS, FBX, COLLADA, PLY via AssimpNet 5 |
 | Dual graph | `DualGraphBuilder` | Dihedral-angle weights; zero-area face guard |
 | MST | `KruskalMstBuilder` | Kruskal + path-compressed Union-Find |
@@ -84,64 +85,116 @@ No circular dependencies. Domain has zero external dependencies.
 
 | Item | Result |
 |------|--------|
-| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 6 warnings (NuGet NU1603 only) |
-| `dotnet test` | ✅ 34 / 34 passed |
-| `dotnet run --project src/FourHUnfolder.App` | ✅ App mở, Light mode mặc định, icon lớn hơn |
-| Published `4H-Unfolder.exe` v0.0.2.G (win-x64, self-contained) | ✅ Session 28 |
+| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 4 warnings (NuGet NU1603 only) |
+| `dotnet test` | ✅ 41 / 41 passed |
+| `dotnet run --project src/FourHUnfolder.App` | ✅ App opens, PDO files visible in file dialog |
+| Published `4H-Unfolder.exe` v0.0.2.H (win-x64, self-contained) | ✅ Session 29 (PDO not yet in release) |
 
 ---
 
-## Session 28 — Changes
+## Session 30 — Changes
 
 | Item | Detail |
 |------|--------|
-| **Light/Dark theme system** | `Themes/LightTheme.xaml` + `DarkTheme.xaml` — 2 ResourceDictionary với 30+ semantic color keys; `ThemeService.Apply(mode)` swap MergedDictionaries tại runtime → DynamicResource cập nhật ngay lập tức |
-| **ThemeService** | `App/Services/ThemeService.cs`; registered `AddSingleton<ThemeService>()` trong DI; applied on startup từ `settings.General.ThemeMode` |
-| **Settings persistence** | `AppSettings.GeneralSettings` + `ThemeMode = "Light"` (default); `SettingsViewModel` + `ThemeMode` field + `ThemeModes = ["Light","Dark"]`; Settings > General > Appearance > UI theme ComboBox |
-| **MainWindow.xaml** | Window + toolbar + status bar + splitter + 2D border đều dùng DynamicResource; toolbar bọc `ToolbarBg`; status bar bọc `StatusBarBg` |
-| **PatternCanvasControl.xaml** | Grid/ScrollViewer/Toolbar background dùng DynamicResource `Canvas2DBg`/`Canvas2DScrollerBg`/`Toolbar2DBg` |
-| **SettingsDialog.xaml** | Toàn bộ dialog chuyển sang DynamicResource; thêm Appearance GroupBox trong General panel |
-| **Icon resize ×1.4** | `IconBtn` FontSize 15→20; `Icon2D`/`Toggle2D` FontSize 14→19 |
-| **Rounded icon buttons** | Custom `ControlTemplate` với `CornerRadius="5"` + Hover/Pressed/Disabled/Checked triggers; hover color từ `IconBtnHoverBg`/`IconBtnPressedBg` (theme-aware) |
-| **Canvas 2D auto-switch** | `MainViewModel.OnSettingsChanged` detect theme change → auto-update `CanvasBackground` nếu còn ở default của theme cũ; default sáng `#e8eaf0` cho Light mode |
-| **App.xaml** | Cấu trúc `ResourceDictionary.MergedDictionaries` với LightTheme làm default; global Button Padding 14,6→16,7 |
-| **Build/Test** | ✅ 0 errors / 34 tests passed / Light mode mặc định |
-| **Release v0.0.2.G** | Published win-x64 self-contained EXE |
+| **PDO import Phase 1 — 3D geometry** | `PdoMeshLoader.cs` (new): parses PD6 header (sig, localeLen, cipher key, commentLen), skips 120-byte pre-geo settings, reads geo_count + per-geo: cipher-decoded wstr name, raw vertices (3×double), polygon shapes fan-triangulated into triangles, skips unk17 edge data |
+| **PDO cipher** | Subtraction cipher `decoded = (raw−key+256)%256`; applies only to `wstr` fields; all int/double/bool fields are raw LE |
+| **PDO wstr format** | `uint32` byteLen (raw, NOT char count) + byteLen bytes of cipher-encoded UTF-16LE; trailing null stripped |
+| **PDO pre-geo skip** | geo_count always at abs `74+commentLen+120` = abs 500 for PD6; verified on all 3 sample files |
+| **PDO import Phase 2 — UVs + embedded texture** | Per-point: read `unk13` (offsets 20-35 after vtxIdx) as texture UV [0,1]; per-shape: populate `mesh.UVs` + `mesh.FaceUVs`; fan-triangulate with UV indices |
+| **PDO texture decompression** | After all geos: read texture section (wstr name + 80 bytes settings + bool hasImage + w/h/csize + zlib-compressed RGB24); `ZLibStream` decompress → `mesh.EmbeddedTextures` |
+| **`EmbeddedTextureData` record** | New `Domain/Models/EmbeddedTextureData.cs`: `(Name, Width, Height, Rgb24Bytes)` |
+| **`Mesh.EmbeddedTextures`** | New `List<EmbeddedTextureData>` property on Mesh |
+| **`MainViewModel.BitmapFromEmbedded`** | New helper: `BitmapSource.Create(Rgb24)` → `PngBitmapEncoder` → in-memory `BitmapImage`; frozen for cross-thread use |
+| **`RebuildMaterialSlots` PDO fallback** | When `MaterialNames.Count == 0` and `SuggestedTexturePath == null`: uses `BitmapFromEmbedded(mesh.EmbeddedTextures[0])` → stores at `_materialBitmaps[-1]` → picked up by `BuildWpfModel` for 3D texture display |
+| **File dialog + tooltip** | `MainViewModel`: added `*.pdo` to Open Mesh filter; `MainWindow.xaml`: tooltip updated |
+| **`MultiFormatMeshLoader`** | Routes `.pdo` → `PdoMeshLoader` |
+| **Tests** | 7 new `PdoMeshLoaderTests`: geometry valid, vertex count exact, UVs finite in-bounds, embedded textures present with correct w/h/byte-count, invalid-signature guard; 41/41 suite green |
+| **Empirical recon** | Verified on 3 sample files: SoundEmitter (132 KB, 5 geos, 128×128 tex), waluigiblimp (6.1 MB, 2 geos, 2048×2048 tex), Pillar (18.4 MB, 1 geo, 2×textures 2048² + 1440×2880) |
 
 ---
 
-## Session 27 — Changes
+## Session 29 — Changes (archived → BUGS_HISTORY.md)
 
 | Item | Detail |
 |------|--------|
-| **Bug — ModelOrientationDialog crash on load** | `ResizeMode="CanMinResize"` không tồn tại trong WPF `ResizeMode` enum → `TypeConverterMarkupExtension` exception khi BAML load dialog; đã fix → `CanMinimize` |
-| **Bug — `ComputeRotation` reflection matrix** | Cross product sai thứ tự: `Cross(front, up)` → right = (-1,0,0) với default +Y/+Z → reflection matrix flip X → mesh bị mirror + texture biến mất; fix: `Cross(up, front)` + `Cross(front, right)` → identity cho default |
-| **Bug — `BillboardTextVisual3D` removed** | 6 axis label elements dùng HelixToolkit `BillboardTextVisual3D` bị xóa để tránh compat risk trên .NET 8; thay bằng 2D Canvas overlay (TD-27-2) |
-| **Diagnostics — `Error()` inner exception** | `MainViewModel.Error()` trước chỉ show `ex.Message` (outer); nay walk `InnerException` chain → message hữu ích hơn |
-| **TD-25-2 — Edge hover O(n) → O(1)** | `MainWindow.xaml.cs`: `BuildEdgeGrid()` rasterize tất cả edges vào `Dictionary<(int,int), List<int>>` (cell 24px); `FindNearestEdge` chỉ test 3×3 cells (~90 candidates); grid invalidated on camera move + mesh change |
-| **TD-27-1 — Camera auto-fit** | `ModelOrientationDialog`: `ZoomExtents(0)` qua `Dispatcher.BeginInvoke(DispatcherPriority.Loaded)` sau khi mesh được add vào viewport |
-| **TD-27-2 — Axis labels 2D overlay** | `ModelOrientationDialog`: Canvas overlay với 3 `TextBlock` (+X/#ff5555, +Y/#44cc44, +Z/#5599ff); `Viewport3DHelper.Point3DtoPoint2D(CubeViewport.Viewport, pt)` cập nhật vị trí trên mỗi `CameraChanged` |
-| **TD-27-3 — Parallel-axes validation** | `ModelOrientationViewModel`: `AxesAreParallel` computed property + `[NotifyPropertyChangedFor]`; XAML: warning TextBlock (DataTrigger) + OK button Style trigger `IsEnabled=False, Opacity=0.35` khi parallel |
-| **Build/Test** | ✅ 0 errors / 34 tests passed / app loads mesh clean |
-| **Release v0.0.2.F** | Published win-x64 self-contained EXE |
+| **TD-28-4 / TD-28-1 / TD-28-3** | Theme-aware: 3D bg auto-switch; SettingsDialog footer; 4 dialogs (Assembly/Texture/UnfoldSetup/ModelOrientation) |
+| **TD-24-1** | PieceFoldTree fold direction fix (`EdgeDir3D` + `signCorr`) |
+| **Build/Test** | ✅ 0 errors / 34 tests / app opens clean; published v0.0.2.H |
+
+---
 
 ## Remaining Tech Debt
 
 | ID | Priority | Description |
 |----|----------|-------------|
-| TD-24-1 | 🟡 Medium | `PieceFoldTree` fold animation: angles computed from 3D normals applied in flat space — fold direction may be wrong for non-trivial pieces |
-| TD-25-1 | 🟢 Low | `ModelOrientationDialog` shown on every mesh load; add "don't ask again" setting for users who always use Y-up Z-front models |
-| TD-28-1 | 🟡 Medium | `SettingsDialog` footer buttons (OK/Apply/Cancel/Reset) có hardcoded background colors — will look odd in Light mode |
-| TD-28-3 | 🟡 Medium | `AssemblyAnimationWindow`, `TextureDialog`, `UnfoldSetupDialog`, `ModelOrientationDialog` chưa theme-aware (hardcoded dark backgrounds) |
-| TD-28-4 | 🟢 Low | 3D viewport background (`View3D.BackgroundColor`) không tự cập nhật khi đổi theme — user cần tự chỉnh trong Settings > 3D View |
+| TD-PDO-1 | 🟡 Med | `coord` doubles per point (2D paper layout, mm) not extracted — needed for 2D canvas texture display from PDO |
+| TD-PDO-2 | 🟡 Med | Multi-texture PDO (e.g. Pillar.pdo with 2 textures): only first texture used; faces all get `MaterialId=-1`; no material-to-face assignment yet |
+| TD-PDO-3 | 🟢 Low | Pre-geo 120-byte skip hardcoded; if future PDO variant changes settings size, geo_count read goes wrong silently |
+| TD-PDO-4 | 🟢 Low | Embedded texture BMP/PNG not cached to disk → `BitmapFromEmbedded` re-runs zlib decompress + PNG encode on every texture dialog open or 3D rebuild |
+| CRITICAL-3D-TEX | 🔴 Critical | `EnterPreview`/`CommitPreview` call `BuildWpfModel` with `singleTexture` only (no `perMaterial`) → embedded PDO texture + OBJ multi-material texture both lost after texture preview cycle |
+| TD-25-1 | 🟢 Low | `ModelOrientationDialog` shown on every mesh load; add "don't ask again" setting |
 | Performance | 🟢 Low | O(n²) overlap check → spatial grid for meshes > 2000 faces |
 
 ---
 
-## File Inventory (~70 source files, ~6 200 lines)
+## PDO Format Reference (PD6)
+
+```
+abs 0-9    : "version 3\n"  (ASCII, raw)
+abs 10-13  : uint32 locked=6
+abs 14-17  : uint32 unk1
+abs 18-21  : uint32 version
+abs 22-25  : uint32 localeLen (BYTES, not chars)
+abs 26-..  : localeLen bytes locale UTF-16LE (RAW, no cipher)
+abs 66-69  : uint32 cipher_key  (subtraction: decoded=(raw-key+256)%256)
+abs 70-73  : uint32 commentLen (bytes)
+abs 74-..  : commentLen bytes cipher-encoded comment (skip)
+abs 380-499: 120 bytes pre-geometry settings (skip)
+abs 500-.. : geometry + texture section
+
+── Geometry ─────────────────────────────────────────────────
+uint32 geoCount
+  per geo:
+    wstr  name        (uint32 byteLen + cipher UTF-16LE)
+    bool  unk8
+    uint32 vtxCount
+    vtxCount × (double x, double y, double z)  ← RAW, no cipher
+    uint32 shapeCount
+      per shape:
+        int32  unk11
+        uint32 part    (2D paper part index)
+        4 × double     (unk12)
+        uint32 ptCount
+          per point (85 bytes):
+            uint32 vtxIdx      [+0]
+            2×double coord     [+4]   ← 2D paper layout mm, NOT UV
+            2×double unk13     [+20]  ← texture UV [0..1] (may tile outside)
+            bool   unk14       [+36]
+            3×double unk15     [+37]
+            3×uint32 unk16a    [+61]
+            3×float  unk16b    [+73]
+    uint32 edgeCount
+    edgeCount × 22 bytes  (unk17, skip)
+
+── Texture section ──────────────────────────────────────────
+uint32 texCount
+  per texture:
+    wstr  name
+    80 bytes (5 × 4 floats, settings)
+    bool  hasImage
+    if hasImage:
+      uint32 w, uint32 h
+      uint32 csize
+      csize bytes → zlib(RFC 1950) decompress → w×h×3 bytes RGB24 top-to-bottom
+```
+
+---
+
+## File Inventory (~73 source files, ~6 400 lines)
 
 ```
 Domain/Models/          Vertex Edge EdgeType Face Mesh PaperSizeModel ModelScale
+                        EmbeddedTextureData                                  ← NEW
 Domain/DualGraph/       DualGraph GraphNode GraphEdge
 Domain/Results/         UnfoldedFace GlueTab UnfoldResult AssemblyStep
 Domain/Settings/        AppSettings (View3D View2D Print General)
@@ -155,6 +208,7 @@ Application/Interfaces/ IMeshLoader IExporter
 Application/Services/   MeshService UnfoldService ProjectSerializer SettingsService
 
 Infrastructure/         ObjMeshLoader AssimpMeshLoader MultiFormatMeshLoader
+                        PdoMeshLoader                                        ← NEW
                         SvgExporter PdfExporter AffineTransformHelper
 
 App/ViewModels/         MainViewModel PieceViewModel SettingsViewModel
@@ -168,7 +222,8 @@ App/Themes/             LightTheme.xaml DarkTheme.xaml
 App/                    MainWindow App
 
 Tests/                  MstAlgorithmTests (6)  UnfoldEngineTests (9)
-                        GeometryAlgorithmTests (13)  SvgExporterTests (5: AffineTransform)
+                        GeometryAlgorithmTests (13)  SvgExporterTests (5)
+                        PdoMeshLoaderTests (7)                               ← NEW
 App/Assets/             app.ico (6 sizes) logo.png
 ```
 
@@ -176,8 +231,8 @@ App/Assets/             app.ico (6 sizes) logo.png
 
 ## Recommended Next Steps
 
-1. Fix TD-28-1/3: Theme-aware footer buttons + other dialogs (AssemblyAnimationWindow, TextureDialog, etc.)
-2. Fix TD-24-1: PieceFoldTree fold animation direction accuracy
-3. Fix TD-25-1: "don't ask again" for ModelOrientationDialog
-4. Performance: spatial grid for overlap check (>2000 face meshes)
-5. PDO import (Pepakura native format — reverse-engineered, complex)
+1. **TD-PDO-2** — Multi-texture PDO: assign MaterialId to faces based on geo/texture name matching; populate `mesh.MaterialNames` from texture names
+2. **CRITICAL-3D-TEX** — Fix `EnterPreview`/`CommitPreview` to pass `_materialBitmaps` so PDO + OBJ multi-material textures survive preview cycles
+3. **TD-PDO-1** — Extract `coord` (paper 2D layout) from PDO to build the 2D unfolded pattern from the embedded layout data (advanced)
+4. **TD-25-1** — "don't ask again" for ModelOrientationDialog
+5. Performance: spatial grid for overlap check (>2000 face meshes)

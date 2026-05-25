@@ -556,7 +556,12 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
             }
 
             var  axis  = axisVec / axisLen;
-            var  q     = System.Numerics.Quaternion.CreateFromAxisAngle(axis, node.TargetTheta * tFold);
+
+            // TargetTheta was signed using the 3-D mesh edge direction (VA→VB).
+            // After parent accumulated transform the flat-space axis may be
+            // antiparallel to that 3-D direction → flip the angle sign to match.
+            float signCorr = Vector3.Dot(axis, node.EdgeDir3D) >= 0f ? 1f : -1f;
+            var  q     = System.Numerics.Quaternion.CreateFromAxisAngle(axis, signCorr * node.TargetTheta * tFold);
             var  R     = Matrix4x4.CreateFromQuaternion(q);
 
             // Rotation around worldA:  T(-worldA) * R * T(+worldA)

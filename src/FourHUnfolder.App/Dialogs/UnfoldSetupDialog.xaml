@@ -5,32 +5,32 @@
         Width="440" Height="390"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
-        Background="#1e1e3c"
-        Foreground="White">
+        Background="{DynamicResource DialogBg}"
+        Foreground="{DynamicResource TextPrimary}">
 
     <Window.Resources>
         <Style TargetType="Label">
-            <Setter Property="Foreground"  Value="#c8d8ff"/>
+            <Setter Property="Foreground"  Value="{DynamicResource FieldLabelFg}"/>
             <Setter Property="FontSize"    Value="12"/>
             <Setter Property="Margin"      Value="0,0,6,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style TargetType="TextBox">
-            <Setter Property="Background"  Value="#12122b"/>
-            <Setter Property="Foreground"  Value="White"/>
-            <Setter Property="BorderBrush" Value="#555577"/>
+            <Setter Property="Background"  Value="{DynamicResource InputBg}"/>
+            <Setter Property="Foreground"  Value="{DynamicResource InputFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
             <Setter Property="Padding"     Value="4,2"/>
             <Setter Property="Height"      Value="26"/>
         </Style>
         <Style TargetType="ComboBox">
-            <Setter Property="Background"  Value="#12122b"/>
-            <Setter Property="Foreground"  Value="White"/>
-            <Setter Property="BorderBrush" Value="#555577"/>
+            <Setter Property="Background"  Value="{DynamicResource InputBg}"/>
+            <Setter Property="Foreground"  Value="{DynamicResource InputFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
             <Setter Property="Height"      Value="26"/>
         </Style>
         <Style TargetType="GroupBox">
-            <Setter Property="Foreground"  Value="#a0c0ff"/>
-            <Setter Property="BorderBrush" Value="#444466"/>
+            <Setter Property="Foreground"  Value="{DynamicResource GroupBoxFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource GroupBoxBorder}"/>
             <Setter Property="Margin"      Value="0,0,0,10"/>
             <Setter Property="Padding"     Value="10,8"/>
         </Style>
@@ -57,7 +57,7 @@
                 <TextBlock Grid.Row="0" Grid.ColumnSpan="4"
                            x:Name="BBoxLabel"
                            Text="Bounding box: —"
-                           Foreground="#888899" FontSize="11" Margin="0,0,0,4"/>
+                           Foreground="{DynamicResource TextMuted}" FontSize="11" Margin="0,0,0,4"/>
 
                 <!-- Scale fields -->
                 <Label Grid.Row="2" Grid.Column="0" Content="Scale axis :"/>
@@ -129,10 +129,10 @@
                             Orientation="Horizontal">
                     <RadioButton x:Name="PortraitRadio"
                                  Content="Portrait"  IsChecked="True"
-                                 Foreground="White" Margin="0,0,18,0"/>
+                                 Foreground="{DynamicResource TextPrimary}" Margin="0,0,18,0"/>
                     <RadioButton x:Name="LandscapeRadio"
                                  Content="Landscape"
-                                 Foreground="White"/>
+                                 Foreground="{DynamicResource TextPrimary}"/>
                 </StackPanel>
             </Grid>
         </GroupBox>
@@ -143,11 +143,15 @@
                     Margin="0,6,0,0">
             <Button Content="  OK  "
                     Width="80" Height="30" Margin="0,0,10,0"
-                    Background="#1a4060" Foreground="White" BorderBrush="#2a6090"
+                    Background="{DynamicResource BtnOkBg}"
+                    Foreground="{DynamicResource BtnOkFg}"
+                    BorderBrush="{DynamicResource BtnOkBorder}"
                     Click="OK_Click"/>
             <Button Content="Cancel"
                     Width="80" Height="30"
-                    Background="#402020" Foreground="White" BorderBrush="#804040"
+                    Background="{DynamicResource BtnCancelBg}"
+                    Foreground="{DynamicResource BtnCancelFg}"
+                    BorderBrush="{DynamicResource BtnCancelBorder}"
                     Click="Cancel_Click"/>
         </StackPanel>
     </DockPanel>

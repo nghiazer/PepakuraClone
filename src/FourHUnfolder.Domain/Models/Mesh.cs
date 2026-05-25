@@ -23,6 +23,13 @@ public sealed class Mesh
     /// Texture path suggested by the associated material file (e.g. from MTL).
     public string? SuggestedTexturePath { get; set; }
 
+    /// <summary>
+    /// Raw RGB24 texture data embedded directly in the file (e.g. PDO format).
+    /// Each element is one texture layer (multi-texture PDOs have multiple entries).
+    /// Width × Height × 3 bytes, R-G-B order, top-to-bottom scan order.
+    /// </summary>
+    public List<EmbeddedTextureData> EmbeddedTextures { get; } = new();
+
     /// Material names in order; index matches Face.MaterialId.
     public List<string> MaterialNames        { get; } = new();
     /// Suggested texture path per material (parallel to MaterialNames). Null = no texture.

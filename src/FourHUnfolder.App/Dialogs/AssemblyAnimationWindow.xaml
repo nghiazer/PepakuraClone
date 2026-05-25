@@ -6,7 +6,7 @@
         Width="900" Height="700"
         MinWidth="640" MinHeight="480"
         WindowStartupLocation="CenterOwner"
-        Background="#12122b">
+        Background="{DynamicResource DialogBg}">
 
     <Window.Resources>
         <!-- Button style matching the main toolbar -->
@@ -16,18 +16,18 @@
             <Setter Property="FontSize"   Value="14"/>
             <Setter Property="Cursor"     Value="Hand"/>
             <Setter Property="MinWidth"   Value="38"/>
-            <Setter Property="Background" Value="#2a2a4a"/>
-            <Setter Property="Foreground" Value="#d0d8f0"/>
-            <Setter Property="BorderBrush" Value="#4a4a6a"/>
+            <Setter Property="Background" Value="{DynamicResource CtrlBtnBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource CtrlBtnFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CtrlBtnBorder}"/>
         </Style>
 
         <Style x:Key="PlayBtn" TargetType="Button" BasedOn="{StaticResource CtrlBtn}">
-            <Setter Property="Background" Value="#2a4a2a"/>
+            <Setter Property="Background" Value="{DynamicResource BtnApplyBg}"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="MinWidth"   Value="100"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsPlaying}" Value="True">
-                    <Setter Property="Background" Value="#4a2a2a"/>
+                    <Setter Property="Background" Value="{DynamicResource BtnCancelBg}"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -51,7 +51,7 @@
 
         <!-- ═══ Row 0 — 3-D Viewport ═══════════════════════════════════════ -->
         <Border Grid.Row="0"
-                BorderBrush="#3d3d5c" BorderThickness="0,0,0,1">
+                BorderBrush="{DynamicResource BorderNormal}" BorderThickness="0,0,0,1">
             <Grid>
                 <helix:HelixViewport3D x:Name="Viewport3D"
                                        Background="#0d0d1a"
@@ -88,9 +88,9 @@
         </Border>
 
         <!-- ═══ Row 1 — Step description ════════════════════════════════════ -->
-        <Border Grid.Row="1" Background="#1a1a3a" Padding="16,8">
+        <Border Grid.Row="1" Background="{DynamicResource AssemblyStepBg}" Padding="16,8">
             <TextBlock Text="{Binding StepDescription}"
-                       Foreground="#a8c8ff" FontSize="13"
+                       Foreground="{DynamicResource TextAccent}" FontSize="13"
                        FontFamily="Segoe UI" TextWrapping="Wrap"/>
         </Border>
 
@@ -99,17 +99,17 @@
                      Value="{Binding StepProgress, Mode=OneWay}"
                      Maximum="100"
                      Height="5"
-                     Background="#1a1a3a"
+                     Background="{DynamicResource AssemblyStepBg}"
                      Foreground="#ffcc30"
                      BorderThickness="0"/>
 
         <!-- ═══ Row 3 — Controls ══════════════════════════════════════════════ -->
-        <Border Grid.Row="3" Background="#12122b" Padding="10,8">
+        <Border Grid.Row="3" Background="{DynamicResource AssemblyCtrlBg}" Padding="10,8">
             <DockPanel>
                 <!-- Step counter on the right -->
                 <TextBlock DockPanel.Dock="Right"
                            VerticalAlignment="Center" Margin="12,0,4,0"
-                           Foreground="#7788aa" FontSize="12" FontFamily="Consolas"
+                           Foreground="{DynamicResource TextMuted}" FontSize="12" FontFamily="Consolas"
                            Text="{Binding StepCountText}"/>
 
                 <!-- Playback controls -->
@@ -140,10 +140,10 @@
                             Command="{Binding GoToEndCommand}"
                             ToolTip="Go to last step (fully assembled)"/>
 
-                    <Separator Margin="8,0" Background="#3d3d5c"/>
+                    <Separator Margin="8,0" Background="{DynamicResource BorderNormal}"/>
 
                     <TextBlock VerticalAlignment="Center" Margin="6,0,0,0"
-                               Foreground="#556688" FontSize="11"
+                               Foreground="{DynamicResource TextMuted}" FontSize="11"
                                Text="Scroll = zoom  ·  LMB = orbit  ·  RMB = pan"/>
                 </StackPanel>
             </DockPanel>

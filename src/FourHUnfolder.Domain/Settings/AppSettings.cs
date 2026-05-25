@@ -16,7 +16,7 @@ public sealed class AppSettings
     public sealed class View3DSettings
     {
         // Background
-        public string BackgroundColor      { get; set; } = "#0d0d1a";
+        public string BackgroundColor      { get; set; } = "#e8ecf4"; // Light theme default; auto-switches with theme
 
         // Viewport chrome
         public bool   ShowCoordinateSystem { get; set; } = true;

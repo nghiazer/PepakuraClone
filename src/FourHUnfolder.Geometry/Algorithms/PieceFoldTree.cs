@@ -38,6 +38,12 @@ public sealed class PieceFoldTree
         /// Signed fold angle in radians to reach the 3-D dihedral from flat.
         public float TargetTheta    { get; init; }
 
+        /// Normalised 3-D direction of the shared edge (VA → VB) in the original
+        /// mesh space, as used when computing <see cref="TargetTheta"/>.
+        /// AssemblyViewModel uses this to reconcile sign when the flat-layout
+        /// edge direction is antiparallel to the 3-D mesh edge direction.
+        public Vector3 EdgeDir3D    { get; init; }
+
         /// Children in BFS order.
         public List<FoldNode> Children { get; } = [];
     }
@@ -115,7 +121,9 @@ public sealed class PieceFoldTree
                     ParentFaceId = parent.FaceId,
                     SharedEdgeVA = va,
                     SharedEdgeVB = vb,
-                    TargetTheta  = ComputeFoldAngle(mesh, parent.FaceId, nb, va, vb)
+                    TargetTheta  = ComputeFoldAngle(mesh, parent.FaceId, nb, va, vb),
+                    EdgeDir3D    = Vector3.Normalize(
+                                       mesh.Vertices[vb].Position - mesh.Vertices[va].Position)
                 };
                 parent.Children.Add(child);
                 bfsOrder.Add(child);

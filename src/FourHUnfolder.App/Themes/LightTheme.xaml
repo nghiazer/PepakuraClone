@@ -59,4 +59,25 @@
     <SolidColorBrush x:Key="IconBtnHoverBg"   Color="#d0d4e0"/>
     <SolidColorBrush x:Key="IconBtnPressedBg" Color="#b8bece"/>
 
+    <!-- ── Dialog action buttons ──────────────────────────────────── -->
+    <SolidColorBrush x:Key="BtnOkBg"          Color="#d0e8ff"/>
+    <SolidColorBrush x:Key="BtnOkBorder"      Color="#6699cc"/>
+    <SolidColorBrush x:Key="BtnOkFg"          Color="#0a2a60"/>
+    <SolidColorBrush x:Key="BtnApplyBg"       Color="#d0f0da"/>
+    <SolidColorBrush x:Key="BtnApplyBorder"   Color="#55aa77"/>
+    <SolidColorBrush x:Key="BtnApplyFg"       Color="#0a3018"/>
+    <SolidColorBrush x:Key="BtnCancelBg"      Color="#f0d0d0"/>
+    <SolidColorBrush x:Key="BtnCancelBorder"  Color="#cc6666"/>
+    <SolidColorBrush x:Key="BtnCancelFg"      Color="#5a1010"/>
+    <SolidColorBrush x:Key="BtnResetBg"       Color="#ffe8d0"/>
+    <SolidColorBrush x:Key="BtnResetBorder"   Color="#cc8844"/>
+    <SolidColorBrush x:Key="BtnResetFg"       Color="#884400"/>
+
+    <!-- ── Assembly animation window ─────────────────────────────── -->
+    <SolidColorBrush x:Key="AssemblyStepBg"   Color="#dce0f0"/>
+    <SolidColorBrush x:Key="AssemblyCtrlBg"   Color="#e0e4f0"/>
+    <SolidColorBrush x:Key="CtrlBtnBg"        Color="#c8d0e4"/>
+    <SolidColorBrush x:Key="CtrlBtnFg"        Color="#1a1e2e"/>
+    <SolidColorBrush x:Key="CtrlBtnBorder"    Color="#a0aac4"/>
+
 </ResourceDictionary>

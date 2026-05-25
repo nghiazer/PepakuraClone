@@ -29,3 +29,4 @@ publish_small/
 
 # Installer output
 dist/
+.claude/settings.local.json

@@ -240,8 +240,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private string _lastThemeMode = "Light";
 
     // Canonical default canvas backgrounds per theme (auto-swapped on theme change)
-    private const string LightCanvasBg = "#e8eaf0";
-    private const string DarkCanvasBg  = "#3a3a5a";
+    private const string LightCanvasBg  = "#e8eaf0";
+    private const string DarkCanvasBg   = "#3a3a5a";
+    private const string LightView3DBg  = "#e8ecf4";
+    private const string DarkView3DBg   = "#0d0d1a";
 
     private static string View3DHash(AppSettings.View3DSettings v) =>
         $"{v.FaceColor}|{v.BackFaceColor}|{v.FaceOpacity:F4}|{v.DisplayMode}|{v.EdgeOverlayColor}|{v.EdgeOverlayThickness:F4}";
@@ -263,6 +265,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             if (string.Equals(S.View2D.CanvasBackground, oldCanvasBg, StringComparison.OrdinalIgnoreCase))
                 PatchSettings(s => s.View2D.CanvasBackground = newCanvasBg);
+
+            // Auto-switch 3D viewport background if still at previous theme's default
+            var oldView3DBg = goingLight ? DarkView3DBg : LightView3DBg;
+            var newView3DBg = goingLight ? LightView3DBg : DarkView3DBg;
+            if (string.Equals(S.View3D.BackgroundColor, oldView3DBg, StringComparison.OrdinalIgnoreCase))
+                PatchSettings(s => s.View3D.BackgroundColor = newView3DBg);
 
             _lastThemeMode = newTheme;
         }
@@ -404,8 +412,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var dlg = new OpenFileDialog
         {
             Title  = "Open 3D Mesh",
-            Filter = "All supported meshes (*.obj;*.3ds;*.stl;*.dxf;*.lwo;*.lws;*.fbx;*.dae;*.ply)|*.obj;*.3ds;*.stl;*.dxf;*.lwo;*.lws;*.fbx;*.dae;*.ply" +
+            Filter = "All supported meshes (*.obj;*.pdo;*.3ds;*.stl;*.dxf;*.lwo;*.lws;*.fbx;*.dae;*.ply)|*.obj;*.pdo;*.3ds;*.stl;*.dxf;*.lwo;*.lws;*.fbx;*.dae;*.ply" +
                      "|Wavefront OBJ (*.obj)|*.obj" +
+                     "|Pepakura Designer (*.pdo)|*.pdo" +
                      "|3D Studio (*.3ds)|*.3ds" +
                      "|STL (*.stl)|*.stl" +
                      "|AutoCAD DXF (*.dxf)|*.dxf" +
@@ -834,7 +843,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         var geo   = BuildThinCylinder(
             new Point3D(p1.X, p1.Y, p1.Z),
             new Point3D(p2.X, p2.Y, p2.Z),
-            radius: ScaleMmPerUnit * 0.008);
+            radius: 2.0 / ScaleMmPerUnit);   // 2 mm physical radius; formula is mm/scale not scale*const
 
         var colorHex = isDetach ? S.View3D.EdgeHoverDetachColor : S.View3D.EdgeHoverAttachColor;
         var fallback = isDetach ? "#ff3333" : "#33cc33";
@@ -1341,8 +1350,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         if (mesh.MaterialNames.Count == 0)
         {
-            // No materials — single default slot
-            var bmp  = LoadBitmapImage(mesh.SuggestedTexturePath);
+            // No named materials — single default slot.
+            // Prefer a file-based texture; fall back to PDO embedded texture.
+            var bmp  = LoadBitmapImage(mesh.SuggestedTexturePath)
+                       ?? (mesh.EmbeddedTextures.Count > 0
+                           ? BitmapFromEmbedded(mesh.EmbeddedTextures[0])
+                           : null);
             var slot = new MaterialTextureViewModel(-1, "Default", mesh.SuggestedTexturePath, bmp);
             MaterialTextureSlots.Add(slot);
             _materialBitmaps[-1] = bmp;
@@ -1354,11 +1367,52 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 var path = (i < mesh.MaterialTexturePaths.Count)
                     ? mesh.MaterialTexturePaths[i]
                     : null;
-                var bmp  = LoadBitmapImage(path);
+                // For PDO multi-texture: if no file path, check embedded by index
+                var bmp  = LoadBitmapImage(path)
+                           ?? (path == null && i < mesh.EmbeddedTextures.Count
+                               ? BitmapFromEmbedded(mesh.EmbeddedTextures[i])
+                               : null);
                 var slot = new MaterialTextureViewModel(i, mesh.MaterialNames[i], path, bmp);
                 MaterialTextureSlots.Add(slot);
                 _materialBitmaps[i] = bmp;
             }
+        }
+    }
+
+    /// <summary>
+    /// Converts raw RGB24 embedded texture data to a frozen WPF BitmapImage.
+    /// </summary>
+    private static BitmapImage? BitmapFromEmbedded(EmbeddedTextureData emb)
+    {
+        try
+        {
+            // Create a BitmapSource from raw RGB24 bytes (R,G,B order, top-to-bottom).
+            var src = System.Windows.Media.Imaging.BitmapSource.Create(
+                emb.Width, emb.Height, 96, 96,
+                System.Windows.Media.PixelFormats.Rgb24,
+                null,
+                emb.Rgb24Bytes,
+                emb.Width * 3);  // stride = width × 3 bytes
+
+            // Encode to PNG in memory so BitmapImage can be frozen (required for cross-thread).
+            var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(src));
+
+            using var ms = new System.IO.MemoryStream();
+            encoder.Save(ms);
+            ms.Position = 0;
+
+            var bmp = new System.Windows.Media.Imaging.BitmapImage();
+            bmp.BeginInit();
+            bmp.StreamSource  = ms;
+            bmp.CacheOption   = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+            bmp.EndInit();
+            bmp.Freeze();
+            return bmp;
+        }
+        catch
+        {
+            return null;
         }
     }
 

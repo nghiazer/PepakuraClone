@@ -879,18 +879,26 @@
                 <Button Content="↺  Reset to defaults"
                         HorizontalAlignment="Left"
                         Width="160" Height="30"
-                        Background="#3a2020" Foreground="#ffaaaa" BorderBrush="#6a3030"
+                        Background="{DynamicResource BtnResetBg}"
+                        Foreground="{DynamicResource BtnResetFg}"
+                        BorderBrush="{DynamicResource BtnResetBorder}"
                         Click="Reset_Click" Cursor="Hand"/>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="  OK  " Width="80" Height="30"
-                            Background="#1a4060" Foreground="White" BorderBrush="#2a6090"
+                            Background="{DynamicResource BtnOkBg}"
+                            Foreground="{DynamicResource BtnOkFg}"
+                            BorderBrush="{DynamicResource BtnOkBorder}"
                             Margin="0,0,8,0" Click="OK_Click" Cursor="Hand"/>
                     <Button Content="Apply" Width="80" Height="30"
-                            Background="#1a3a20" Foreground="White" BorderBrush="#2a6a30"
+                            Background="{DynamicResource BtnApplyBg}"
+                            Foreground="{DynamicResource BtnApplyFg}"
+                            BorderBrush="{DynamicResource BtnApplyBorder}"
                             Margin="0,0,8,0" Click="Apply_Click" Cursor="Hand"/>
                     <Button Content="Cancel" Width="80" Height="30"
-                            Background="#402020" Foreground="White" BorderBrush="#804040"
+                            Background="{DynamicResource BtnCancelBg}"
+                            Foreground="{DynamicResource BtnCancelFg}"
+                            BorderBrush="{DynamicResource BtnCancelBorder}"
                             Click="Cancel_Click" Cursor="Hand"/>
                 </StackPanel>
             </Grid>

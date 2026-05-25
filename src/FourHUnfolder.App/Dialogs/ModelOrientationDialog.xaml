@@ -7,24 +7,24 @@
         MinWidth="480" MinHeight="380"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanMinimize"
-        Background="#1e1e3c" Foreground="White">
+        Background="{DynamicResource DialogBg}" Foreground="{DynamicResource TextPrimary}">
 
     <Window.Resources>
         <Style x:Key="Label" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#c0d0f0"/>
+            <Setter Property="Foreground" Value="{DynamicResource FieldLabelFg}"/>
             <Setter Property="FontSize"   Value="12"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Margin"     Value="0,0,8,0"/>
         </Style>
         <Style TargetType="ComboBox">
-            <Setter Property="Background"  Value="#12122b"/>
-            <Setter Property="Foreground"  Value="White"/>
-            <Setter Property="BorderBrush" Value="#555577"/>
+            <Setter Property="Background"  Value="{DynamicResource InputBg}"/>
+            <Setter Property="Foreground"  Value="{DynamicResource InputFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
             <Setter Property="Height"      Value="26"/>
             <Setter Property="Width"       Value="80"/>
         </Style>
         <Style TargetType="CheckBox">
-            <Setter Property="Foreground"        Value="#c0d0f0"/>
+            <Setter Property="Foreground"        Value="{DynamicResource CheckBoxFg}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
     </Window.Resources>
@@ -40,9 +40,9 @@
         <!-- ── Title ───────────────────────────────── -->
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Set Model Orientation"
-                       FontSize="16" FontWeight="Bold" Foreground="White"/>
+                       FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             <TextBlock Text="The viewport shows your model with the selected orientation applied (live preview). Axis lines: Red=+X, Green=+Y, Blue=+Z."
-                       Foreground="#8899bb" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                       Foreground="{DynamicResource TextMuted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
         </StackPanel>
 
         <!-- ── Mesh viewer + axis selectors ─────────── -->
@@ -55,7 +55,7 @@
             <!-- Mesh preview viewport.
                  Axis lines (X=Red, Y=Green, Z=Blue) and the actual mesh
                  are added in code-behind. The mesh rotates live as you change axes. -->
-            <Border Grid.Column="0" BorderBrush="#3a3a60" BorderThickness="1" CornerRadius="4"
+            <Border Grid.Column="0" BorderBrush="{DynamicResource BorderNormal}" BorderThickness="1" CornerRadius="4"
                     Margin="0,0,12,0">
                 <Grid>
                     <helix:HelixViewport3D x:Name="CubeViewport"
@@ -85,7 +85,7 @@
                                    Canvas.Left="0" Canvas.Top="0"/>
                     </Canvas>
 
-                    <TextBlock Text="Drag to rotate view" Foreground="#555577" FontSize="10"
+                    <TextBlock Text="Drag to rotate view" Foreground="{DynamicResource TextMuted}" FontSize="10"
                                HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4"
                                IsHitTestVisible="False"/>
                 </Grid>
@@ -93,7 +93,7 @@
 
             <!-- ── Axis selector controls ────────────────── -->
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock Text="Axis Reference" FontWeight="Bold" Foreground="White"
+                <TextBlock Text="Axis Reference" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"
                            FontSize="12" Margin="0,0,0,8"/>
 
                 <!-- Axis color legend matching the 3D lines -->
@@ -112,7 +112,7 @@
                     </StackPanel>
                 </StackPanel>
 
-                <Separator Background="#3a3a60" Margin="0,0,0,12"/>
+                <Separator Background="{DynamicResource BorderNormal}" Margin="0,0,0,12"/>
 
                 <!-- Up axis -->
                 <TextBlock Text="Up axis (maps to world +Y)"
@@ -148,13 +148,13 @@
         </Grid>
 
         <!-- ── Flip UV ──────────────────────────────── -->
-        <Border Grid.Row="2" Background="#12122b" CornerRadius="4" Padding="10,8" Margin="0,12,0,0">
+        <Border Grid.Row="2" Background="{DynamicResource DialogNavBg}" CornerRadius="4" Padding="10,8" Margin="0,12,0,0">
             <StackPanel>
                 <CheckBox Content="Flip UV (mirror texture vertically)"
                           IsChecked="{Binding FlipUV}"
                           ToolTip="Flips V coordinate: fixes textures that appear upside-down."/>
                 <TextBlock Text="Tip: if the texture looks wrong after loading, try enabling Flip UV."
-                           Foreground="#667799" FontSize="10" Margin="20,3,0,0"/>
+                           Foreground="{DynamicResource TextMuted}" FontSize="10" Margin="20,3,0,0"/>
             </StackPanel>
         </Border>
 
@@ -163,7 +163,9 @@
                     Margin="0,12,0,0">
             <!-- TD-27-3: disable OK when axes are parallel -->
             <Button Content="  OK  " Width="80" Height="30"
-                    Background="#1a4060" Foreground="White" BorderBrush="#2a6090"
+                    Background="{DynamicResource BtnOkBg}"
+                    Foreground="{DynamicResource BtnOkFg}"
+                    BorderBrush="{DynamicResource BtnOkBorder}"
                     Cursor="Hand" Margin="0,0,8,0" Click="OK_Click" IsDefault="True">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -177,7 +179,9 @@
                 </Button.Style>
             </Button>
             <Button Content="Skip" Width="80" Height="30"
-                    Background="#2a2a4a" Foreground="#8899bb" BorderBrush="#3a3a6a"
+                    Background="{DynamicResource CtrlBtnBg}"
+                    Foreground="{DynamicResource TextMuted}"
+                    BorderBrush="{DynamicResource BorderNormal}"
                     Cursor="Hand" Click="Skip_Click" IsCancel="True"
                     ToolTip="Skip orientation adjustment and load mesh as-is"/>
         </StackPanel>
