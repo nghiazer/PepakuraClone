@@ -301,7 +301,14 @@ public partial class PatternCanvasControl : UserControl
             switch (ev.PropertyName)
             {
                 case nameof(PieceViewModel.IsSelected):
-                    Dispatcher.Invoke(() => RenderPieceShapes(container, piece));
+                    Dispatcher.Invoke(() =>
+                    {
+                        RenderPieceShapes(container, piece);
+                        // BUG-PDO-3: when a piece becomes selected scroll the 2D canvas
+                        // to bring it into view (guards against any positioning error placing
+                        // the piece outside the visible viewport).
+                        if (piece.IsSelected) ScrollToShowPiece(piece);
+                    });
                     break;
                 // Sync canvas transform whenever piece position or rotation changes in the VM
                 case nameof(PieceViewModel.PositionX):
@@ -565,6 +572,27 @@ public partial class PatternCanvasControl : UserControl
             piece.PositionX * _pxPerMm + PaperMarginPx,
             piece.PositionY * _pxPerMm + PaperMarginPx));
         c.RenderTransform = tg;
+    }
+
+    /// <summary>
+    /// Scrolls the 2D canvas viewport to bring the piece center into view.
+    /// Only scrolls if the piece center is currently outside the visible viewport.
+    /// </summary>
+    private void ScrollToShowPiece(PieceViewModel piece)
+    {
+        double cx = piece.PositionX * _pxPerMm + PaperMarginPx;
+        double cy = piece.PositionY * _pxPerMm + PaperMarginPx;
+
+        double left   = Scroller.HorizontalOffset;
+        double top    = Scroller.VerticalOffset;
+        double right  = left + Scroller.ViewportWidth;
+        double bottom = top  + Scroller.ViewportHeight;
+
+        if (cx < left || cx > right || cy < top || cy > bottom)
+        {
+            Scroller.ScrollToHorizontalOffset(Math.Max(0, cx - Scroller.ViewportWidth  / 2));
+            Scroller.ScrollToVerticalOffset  (Math.Max(0, cy - Scroller.ViewportHeight / 2));
+        }
     }
 
     private void UpdateCanvasSize()

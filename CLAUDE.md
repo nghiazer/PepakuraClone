@@ -78,7 +78,7 @@ the exact line from `find_definition`.
 
 ## Tech debt & known issues (branch `feat/pdo-import`, as of v0.0.3.B)
 
-### Fixed (session 30–34)
+### Fixed (session 30–35)
 | ID | Fixed in | Description |
 |----|----------|-------------|
 | ~~CRITICAL-3D-TEX~~ | s32 | `EnterPreview`/`CommitPreview` now pass `_materialBitmaps` to `BuildWpfModel` |
@@ -89,9 +89,10 @@ the exact line from `find_definition`.
 | ~~TD-PDO-3~~ | s34 | Pre-geo seek: `Seek(120, Current)` → `Seek(154+localeLen+commentLen, Begin)` — absolute formula |
 | ~~TD-PDO-4~~ | s34 | `BitmapFromEmbedded` split into cached wrapper + core; `_embeddedBitmapCache` cleared on mesh load |
 | ~~TD-25-1~~ | s34 | `ModelOrientationDialog` — "Don't ask again" checkbox added; persisted to `AppSettings.General` |
+| ~~BUG-PDO-3~~ | s35 | `RunAutoArrange` rot=90 formula: `localX - (-minY)` → `localX + minY + hNat`; PDO pieces no longer placed off-screen |
 
 ### Open
-*(no open tech debt as of v0.0.3.B)*
+*(no open tech debt as of s35)*
 
 ---
 

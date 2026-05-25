@@ -12,10 +12,10 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
 
     <!-- Version — bump suffix letter for patch releases within a minor version -->
-    <Version>0.0.3.0</Version>
-    <AssemblyVersion>0.0.3.0</AssemblyVersion>
-    <FileVersion>0.0.3.0</FileVersion>
-    <InformationalVersion>0.0.3.B — tech debt TD-PDO-3/4 + TD-25-1</InformationalVersion>
+    <Version>0.0.3.3</Version>
+    <AssemblyVersion>0.0.3.3</AssemblyVersion>
+    <FileVersion>0.0.3.3</FileVersion>
+    <InformationalVersion>0.0.3.C — BUG-PDO-3: PDO pieces no longer disappear on first click</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\FourHUnfolder.Application\FourHUnfolder.Application.csproj" />

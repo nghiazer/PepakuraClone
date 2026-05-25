@@ -5,6 +5,20 @@
 
 ---
 
+## Session 33 Changes (archived from SESSION_PROGRESS)
+
+| Item | Detail |
+|------|--------|
+| **Review & audit** | Scanned all .cs files for TODO/FIXME/TD-/CRITICAL markers; classified open vs fixed tech debt |
+| **BUG-PDO-1 fix** | `ModelOrientationDialog` now skipped for PDO with pre-computed layout — prevented UV double-flip (loader already inverts V; dialog FlipUV would re-invert to wrong orientation) |
+| **BUG-PDO-2 fix** | `texNote` in status bar now shows embedded texture count when no file-path texture present |
+| **Version bump** | `0.0.2.H → 0.0.3.A`; `AssemblyVersion`/`FileVersion`/`InformationalVersion` added to App.csproj; window title updated |
+| **Publish v0.0.3.A** | `dotnet publish -r win-x64 --self-contained true -p:PublishSingleFile=true` → `publish/4H-Unfolder.exe` |
+| **CLAUDE.md** | Tech debt table updated: fixed items marked struck-through; 3 open items remain (TD-PDO-3/4, TD-25-1) |
+| **Tests** | 56 / 56 pass |
+
+---
+
 ## Session 32 Changes (archived from SESSION_PROGRESS)
 
 | Item | Detail |

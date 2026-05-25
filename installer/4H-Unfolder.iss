@@ -1,73 +1,73 @@
-; ============================================================
-;  4H-Unfolder  --  Inno Setup 6 Script
-;  Build: ISCC.exe installer\4H-Unfolder.iss
+﻿; 4H-Unfolder — Inno Setup 6 installer script
+; Compile with: iscc 4H-Unfolder.iss
+; Requires: Inno Setup 6.x  (https://jrsoftware.org/isinfo.php)
 ;
-;  AppId GUID  --  DO NOT change across versions.
-;  Windows uses this GUID to detect upgrades vs. fresh installs.
-; ============================================================
+; Expected layout when compiling:
+;   installer\
+;     4H-Unfolder.iss           <- this file
+;     dist\
+;       4H-Unfolder.exe
+;       wpfgfx_cor3.dll
+;       PresentationNative_cor3.dll
+;       D3DCompiler_47_cor3.dll
+;       PenImc_cor3.dll
+;       vcruntime140_cor3.dll
+;       assimp.dll
+;
+; To populate dist\, run:  scripts\prepare-installer.ps1
 
-#define AppName       "4H-Unfolder"
-#define AppVersion    "0.0.2.G"
-#define AppVersionNum "0.0.2.7"
-#define AppPublisher  "4H"
-#define AppURL        "https://github.com/nghiazer/4H-Unfolder"
-#define AppExe        "4H-Unfolder.exe"
-#define SourceDir     "..\publish\v0.0.2.G"
-#define OutputDir     "..\dist"
-#define IconFile      "..\src\FourHUnfolder.App\Assets\app.ico"
+#define MyAppName      "4H-Unfolder"
+#define MyAppVersion   "0.0.3.C"
+#define MyAppPublisher "NghiaZer"
+#define MyAppURL       "https://github.com/NghiaZer/4H-Unfolder"
+#define MyAppExeName   "4H-Unfolder.exe"
+#define MyAppId        "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 
 [Setup]
-AppId={{BC77D099-D014-4D15-86EB-B0012D4F3267}
-AppName={#AppName}
-AppVersion={#AppVersion}
-AppVerName={#AppName} {#AppVersion}
-AppPublisher={#AppPublisher}
-AppPublisherURL={#AppURL}
-AppSupportURL={#AppURL}/issues
-AppUpdatesURL={#AppURL}/releases
-DefaultDirName={autopf}\{#AppName}
-DefaultGroupName={#AppName}
-PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
-OutputDir={#OutputDir}
-OutputBaseFilename=4H-Unfolder-Setup-v{#AppVersion}
-SetupIconFile={#IconFile}
+AppId={{#MyAppId}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}/issues
+AppUpdatesURL={#MyAppURL}/releases
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
+DisableProgramGroupPage=yes
+PrivilegesRequired=admin
+OutputDir=output
+OutputBaseFilename=4H-Unfolder-v{#MyAppVersion}-Setup
+SetupIconFile=..\src\FourHUnfolder.App\Assets\app.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
-LZMAUseSeparateProcess=yes
 WizardStyle=modern
-DisableProgramGroupPage=yes
-CloseApplications=yes
-CloseApplicationsFilter=*{#AppExe}*
-UninstallDisplayIcon={app}\{#AppExe}
-UninstallDisplayName={#AppName} {#AppVersion}
-ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64BitMode=x64compatible
-VersionInfoVersion={#AppVersionNum}
-VersionInfoProductName={#AppName}
-VersionInfoProductVersion={#AppVersionNum}
-VersionInfoCompany={#AppPublisher}
-VersionInfoDescription={#AppName} Setup
+WizardSizePercent=110
+MinVersion=10.0
+ArchitecturesInstallIn64BitMode=x64
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "{#SourceDir}\assimp.dll";                    DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\D3DCompiler_47_cor3.dll";       DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\PenImc_cor3.dll";               DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\PresentationNative_cor3.dll";   DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\vcruntime140_cor3.dll";         DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\wpfgfx_cor3.dll";               DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourceDir}\{#AppExe}";                     DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\{#MyAppExeName}";             DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\wpfgfx_cor3.dll";             DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\PresentationNative_cor3.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\D3DCompiler_47_cor3.dll";     DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\PenImc_cor3.dll";             DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\vcruntime140_cor3.dll";       DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\assimp.dll";                 DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#AppName}";           Filename: "{app}\{#AppExe}"
-Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#AppName}";     Filename: "{app}\{#AppExe}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}";           Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#MyAppName}";     Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName} {#AppVersion}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName,'&','&&')}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+; Uncomment to wipe user settings on uninstall:
+; Type: filesandordirs; Name: "{localappdata}\4H-Unfolder"

@@ -1,6 +1,6 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-25 (session 34 — tech debt TD-PDO-3/4, TD-25-1; branch `feat/pdo-import`)
+> **Last updated:** 2026-05-25 (session 35 — BUG-PDO-3: PDO piece disappears on first click; branch `feat/pdo-import`)
 > **Branch:** `feat/pdo-import`  (base: `main` @ v0.0.2.H → current: v0.0.3.B)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
@@ -89,6 +89,20 @@ No circular dependencies. Domain has zero external dependencies.
 | `dotnet test` | ✅ 56 / 56 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App opens, PDO files auto-unfold on load |
 | Published `4H-Unfolder.exe` **v0.0.3.B** (win-x64, self-contained) | ✅ Session 34 |
+| BUG-PDO-3 fix | ✅ Session 35 — PDO piece no longer disappears on first click |
+| Published `4H-Unfolder.exe` **v0.0.3.C** (win-x64, self-contained) | ✅ Session 35 |
+
+---
+
+## Session 35 — Changes
+
+| Item | Detail |
+|------|--------|
+| **BUG-PDO-3 root cause** | `RunAutoArrange` rot=90 branch: `PositionX = localX - (-minY)` → double-negation error; evaluates to `localX + minY`. For centered pieces `minY < 0`, placing most of the rotated piece at negative canvas_X (off-screen left). Users saw pieces "disappear" when clicking PDO pieces. |
+| **BUG-PDO-3 fix** | `MainViewModel.cs` `RunAutoArrange`: changed to `localX + minY + hNat` (`= localX + maxY`). After a 90° CW `RotateTransform`, canvas_X_min occurs at `ly = maxY`, so `PositionX` must be ≥ `maxY` to keep the piece on-screen. |
+| **Defensive guard** | `PatternCanvasControl.xaml.cs`: added `ScrollToShowPiece(piece)` call in `IsSelected` PropertyChanged handler; added `ScrollToShowPiece` method that centers the viewport on a piece if it's outside the visible scroll area. |
+| **Why PDO-specific** | PDO paper-model strips are wide (wNat > hNat), frequently hitting the `rot=90` branch. OBJ/FBX mesh pieces are more equidimensional and rarely trigger it. |
+| **Tests** | 56 / 56 pass (no new tests needed — bug is in UI layout arithmetic, no testable pure-logic unit) |
 
 ---
 
@@ -109,28 +123,6 @@ No circular dependencies. Domain has zero external dependencies.
 | ~~TD-PDO-3~~ | 🟢 | ✅ s34 | 120-byte pre-geo skip replaced by absolute offset formula |
 | ~~TD-PDO-4~~ | 🟢 | ✅ s34 | `BitmapFromEmbedded` now cached; no repeated PNG encode |
 | ~~TD-25-1~~  | 🟢 | ✅ s34 | `ModelOrientationDialog` — "Don't ask again" checkbox added |
-
----
-
-## Session 33 — Changes
-
-| Item | Detail |
-|------|--------|
-| **Review & audit** | Scanned all .cs files for TODO/FIXME/TD-/CRITICAL markers; classified open vs fixed tech debt |
-| **BUG-PDO-1 fix** | `ModelOrientationDialog` now skipped for PDO with pre-computed layout — prevented UV double-flip (loader already inverts V; dialog FlipUV would re-invert to wrong orientation) |
-| **BUG-PDO-2 fix** | `texNote` in status bar now shows embedded texture count when no file-path texture present |
-| **Version bump** | `0.0.2.H → 0.0.3.A`; `AssemblyVersion`/`FileVersion`/`InformationalVersion` added to App.csproj; window title updated |
-| **Publish v0.0.3.A** | `dotnet publish -r win-x64 --self-contained true -p:PublishSingleFile=true` → `publish/4H-Unfolder.exe` |
-| **CLAUDE.md** | Tech debt table updated: fixed items marked struck-through; 3 open items remain (TD-PDO-3/4, TD-25-1) |
-| **Tests** | 56 / 56 pass (no new tests needed — bug fixes are in UI/UX path, covered by existing loader tests) |
-
-### Tech debt summary (v0.0.3.A)
-
-| ID | Priority | Status | Description |
-|----|----------|--------|-------------|
-| TD-PDO-3 | 🟢 low | open | 120-byte pre-geo skip hardcoded |
-| TD-PDO-4 | 🟢 low | open | `BitmapFromEmbedded` no caching |
-| TD-25-1  | 🟢 low | open | `ModelOrientationDialog` — no "don't ask again" |
 
 ---
 
@@ -175,6 +167,7 @@ No circular dependencies. Domain has zero external dependencies.
 | ~~TD-PDO-4~~ | 🟢 Low | ✅ fixed | s34 | `BitmapFromEmbedded` cached via `_embeddedBitmapCache`; core only called once per texture per mesh |
 | ~~CRITICAL-3D-TEX~~ | 🔴 Critical | ✅ fixed | s32 | `EnterPreview`/`CommitPreview` now pass `_materialBitmaps` to `BuildWpfModel` |
 | ~~TD-25-1~~ | 🟢 Low | ✅ fixed | s34 | "Don't ask again" checkbox in `ModelOrientationDialog`; persisted to `AppSettings.General` |
+| ~~BUG-PDO-3~~ | 🟡 Med | ✅ fixed | s35 | `RunAutoArrange` rot=90 formula error → PDO pieces placed off-screen, appear to "disappear" on first click |
 | **Performance** | 🟢 Low | 🔲 open | — | O(n²) overlap check (AABB + SAT); spatial grid needed for meshes > 2000 faces |
 
 ---

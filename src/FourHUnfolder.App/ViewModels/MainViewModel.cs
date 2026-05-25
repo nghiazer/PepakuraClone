@@ -1217,8 +1217,11 @@ public partial class MainViewModel : ObservableObject, IDisposable
             }
             else
             {
-                // After 90° rotation: new bbox origin shifts
-                piece.PositionX = pageCol * (paperW + PageSepMm) + localX - (-minY);
+                // After 90° CW rotation (RotateTransform(90)):  canvas_X = -ly*px + Px
+                // Leftmost canvas_X is at ly = maxY = minY + hNat, so:
+                //   PositionX = localX + maxY = localX + minY + hNat
+                // (Previous code used localX - (-minY) = localX + minY which was off by hNat)
+                piece.PositionX = pageCol * (paperW + PageSepMm) + localX + minY + hNat;
                 piece.PositionY = localY - minX;
             }
 
