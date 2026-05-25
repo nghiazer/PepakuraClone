@@ -76,16 +76,23 @@ the exact line from `find_definition`.
 
 ---
 
-## Tech debt (current branch `feat/pdo-import`)
+## Tech debt & known issues (branch `feat/pdo-import`, as of v0.0.3.A)
 
+### Fixed (session 30–32)
+| ID | Fixed in | Description |
+|----|----------|-------------|
+| ~~CRITICAL-3D-TEX~~ | s32 | `EnterPreview`/`CommitPreview` now pass `_materialBitmaps` to `BuildWpfModel` |
+| ~~TD-PDO-1~~ | s32 | PDO `coord` 2-D paper layout extracted → `PdoLayout` / auto-unfold on load |
+| ~~TD-PDO-2~~ | s31 | Multi-texture PDO: per-face material via `unk11`; `RebuildMaterialSlots` uses embedded textures by index |
+| ~~BUG-PDO-1~~ | s33 | `ModelOrientationDialog` skipped for PDO with layout → prevented UV double-flip |
+| ~~BUG-PDO-2~~ | s33 | `texNote` now reflects embedded textures when no file-path texture is present |
+
+### Open
 | ID | Priority | Description |
 |----|----------|-------------|
-| **CRITICAL-3D-TEX** | 🔴 | `EnterPreview`/`CommitPreview` pass only `singleTexture` to `BuildWpfModel` → PDO + OBJ multi-material textures lost after preview cycle |
-| TD-PDO-2 | 🟡 | Multi-texture PDO: only first texture used; no per-face material assignment |
-| TD-PDO-1 | 🟡 | PDO `coord` (2-D paper layout mm) not extracted |
-| TD-PDO-3 | 🟢 | 120-byte pre-geo skip hardcoded |
-| TD-PDO-4 | 🟢 | `BitmapFromEmbedded` no caching |
-| TD-25-1  | 🟢 | `ModelOrientationDialog` — no "don't ask again" |
+| TD-PDO-3 | 🟢 | 120-byte pre-geo skip hardcoded; should compute from header fields |
+| TD-PDO-4 | 🟢 | `BitmapFromEmbedded` called per-slot with no caching; slow for 2048² textures on repeated `RebuildMaterialSlots` |
+| TD-25-1  | 🟢 | `ModelOrientationDialog` — no "don't ask again" checkbox |
 
 ---
 

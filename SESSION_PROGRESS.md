@@ -1,7 +1,7 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-25 (session 32 — PDO Phase C+D: 2D layout restore, CRITICAL-3D-TEX fix; branch `feat/pdo-import`)
-> **Branch:** `feat/pdo-import`  (base: `main` @ v0.0.2.H)
+> **Last updated:** 2026-05-25 (session 33 — review + bugfix + publish v0.0.3.A; branch `feat/pdo-import`)
+> **Branch:** `feat/pdo-import`  (base: `main` @ v0.0.2.H → releasing as v0.0.3.A)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
 > **History archive:** see [`BUGS_HISTORY.md`](BUGS_HISTORY.md) for all prior bug/tech-debt records
@@ -88,7 +88,29 @@ No circular dependencies. Domain has zero external dependencies.
 | `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 4 warnings (NuGet NU1603 only) |
 | `dotnet test` | ✅ 56 / 56 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App opens, PDO files auto-unfold on load |
-| Published `4H-Unfolder.exe` v0.0.2.H (win-x64, self-contained) | ✅ Session 29 (PDO not yet in release) |
+| Published `4H-Unfolder.exe` **v0.0.3.A** (win-x64, self-contained) | ✅ Session 33 |
+
+---
+
+## Session 33 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Review & audit** | Scanned all .cs files for TODO/FIXME/TD-/CRITICAL markers; classified open vs fixed tech debt |
+| **BUG-PDO-1 fix** | `ModelOrientationDialog` now skipped for PDO with pre-computed layout — prevented UV double-flip (loader already inverts V; dialog FlipUV would re-invert to wrong orientation) |
+| **BUG-PDO-2 fix** | `texNote` in status bar now shows embedded texture count when no file-path texture present |
+| **Version bump** | `0.0.2.H → 0.0.3.A`; `AssemblyVersion`/`FileVersion`/`InformationalVersion` added to App.csproj; window title updated |
+| **Publish v0.0.3.A** | `dotnet publish -r win-x64 --self-contained true -p:PublishSingleFile=true` → `publish/4H-Unfolder.exe` |
+| **CLAUDE.md** | Tech debt table updated: fixed items marked struck-through; 3 open items remain (TD-PDO-3/4, TD-25-1) |
+| **Tests** | 56 / 56 pass (no new tests needed — bug fixes are in UI/UX path, covered by existing loader tests) |
+
+### Tech debt summary (v0.0.3.A)
+
+| ID | Priority | Status | Description |
+|----|----------|--------|-------------|
+| TD-PDO-3 | 🟢 low | open | 120-byte pre-geo skip hardcoded |
+| TD-PDO-4 | 🟢 low | open | `BitmapFromEmbedded` no caching |
+| TD-25-1  | 🟢 low | open | `ModelOrientationDialog` — no "don't ask again" |
 
 ---
 

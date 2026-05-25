@@ -442,19 +442,25 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             CancelPreviewSilently();
 
-            // Feature A: Model orientation dialog — pass mesh for live preview
-            var orientDlg = new Dialogs.ModelOrientationDialog(_currentMesh)
+            // Feature A: Model orientation dialog.
+            // Skip for PDO files with a pre-computed 2-D layout: the layout coords are
+            // paper-space (mm) and are independent of the 3-D transform, BUT FlipUV would
+            // double-flip the UVs that the PDO loader already inverted (BUG-PDO-1).
+            if (_currentMesh.PdoLayout == null)
             {
-                Owner = WpfApp.Current.MainWindow
-            };
-            orientDlg.ShowDialog();
-            if (orientDlg.Applied)
-            {
-                var rot = orientDlg.Result.ComputeRotation();
-                if (rot != System.Numerics.Matrix4x4.Identity)
-                    _currentMesh.ApplyTransform(rot);
-                if (orientDlg.Result.FlipUV)
-                    _currentMesh.FlipUVsVertical();
+                var orientDlg = new Dialogs.ModelOrientationDialog(_currentMesh)
+                {
+                    Owner = WpfApp.Current.MainWindow
+                };
+                orientDlg.ShowDialog();
+                if (orientDlg.Applied)
+                {
+                    var rot = orientDlg.Result.ComputeRotation();
+                    if (rot != System.Numerics.Matrix4x4.Identity)
+                        _currentMesh.ApplyTransform(rot);
+                    if (orientDlg.Result.FlipUV)
+                        _currentMesh.FlipUVsVertical();
+                }
             }
 
             _committedTexturePath = _currentMesh.SuggestedTexturePath;
@@ -471,7 +477,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
             UpdateTextureUI(tex, _committedTexturePath, isPreview: false);
             RefreshDerivedVisibility();
 
-            var texNote = _committedTexturePath != null ? " · texture from MTL" : string.Empty;
+            // BUG-PDO-2: embedded-texture PDOs have no file path, so check both sources
+            var texNote = _committedTexturePath != null
+                ? " · texture from MTL"
+                : _currentMesh.EmbeddedTextures.Count > 0
+                    ? $" · {_currentMesh.EmbeddedTextures.Count} embedded texture(s)"
+                    : string.Empty;
 
             // ── Auto-unfold PDO files that carry a pre-computed 2-D layout ────
             if (_currentMesh.PdoLayout != null)
