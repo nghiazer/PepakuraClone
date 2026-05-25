@@ -1,9 +1,14 @@
 # 4H-Unfolder
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet)](https://dotnet.microsoft.com/download/dotnet/8.0)
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)]()
+[![Tests](https://img.shields.io/badge/Tests-56%2F56%20pass-brightgreen)]()
+
 A Pepakura-style paper model unfolder built with **WPF / .NET 8**.  
 Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, and export to SVG or PDF.
 
-> Current version: **v0.0.3.A** (win-x64 self-contained EXE) — adds PDO import + 2-D layout restore
+> Current version: **v0.0.3.C** (win-x64 self-contained EXE) — PDO import + layout restore + bug fixes
 
 ---
 
@@ -28,7 +33,7 @@ dotnet run --project src/FourHUnfolder.App
 ### Tests
 
 ```bash
-dotnet test tests/FourHUnfolder.Tests   # 41 / 41 pass
+dotnet test tests/FourHUnfolder.Tests   # 56 / 56 pass
 ```
 
 ---
@@ -255,7 +260,19 @@ Expected after **Unfold** (A4, 200 mm longest axis):
 
 ## Known limitations
 
-- PDO multi-texture files (multiple materials per geometry) show only the first texture; per-face material assignment is not yet implemented
 - Overlap detection is O(n²) after AABB rejection — slow on meshes > ~2 000 faces
 - Undo/redo covers edge edits and piece transforms; complex multi-step sequences may have minor position drift
 - SVG texture requires UV-mapped mesh; plain geometry without UV coordinates exports without texture
+
+---
+
+## Contributing
+
+Contributions, bug reports and feature requests are welcome!  
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, branch workflow and coding conventions.
+
+---
+
+## License
+
+[MIT](LICENSE) © 2026 NghiaZer
