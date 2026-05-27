@@ -62,6 +62,16 @@ public partial class TextureDialog : Window
             MaterialList.SelectedIndex = 0;
     }
 
+    // Rebuild the checker brush whenever the dialog is activated (e.g. after switching
+    // theme in Settings and then re-focusing this dialog).  The brush is baked with
+    // hard Color values so it can't auto-update via DynamicResource; re-building on
+    // each activation is cheap (one DrawingBrush) and keeps it in sync with the theme.
+    protected override void OnActivated(EventArgs e)
+    {
+        base.OnActivated(e);
+        ApplyCheckerBrush();
+    }
+
     private void MaterialList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         _selected = MaterialList.SelectedItem as MaterialTextureViewModel;

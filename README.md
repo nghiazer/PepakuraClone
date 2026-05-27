@@ -8,7 +8,7 @@
 A Pepakura-style paper model unfolder built with **WPF / .NET 8**.  
 Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, and export to SVG or PDF.
 
-> Current version: **v0.0.3.D** (win-x64 self-contained EXE) — UI/UX polish: maximize startup, dialog fixes, semantic align icons
+> Current version: **v0.0.3.E** (win-x64 self-contained EXE) — Dark/Light theme fix + UI/UX polish
 
 ---
 

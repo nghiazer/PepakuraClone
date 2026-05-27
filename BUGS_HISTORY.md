@@ -5,6 +5,18 @@
 
 ---
 
+## Session 35 Changes (archived from SESSION_PROGRESS)
+
+| Item | Detail |
+|------|--------|
+| **BUG-PDO-3 root cause** | `RunAutoArrange` rot=90 branch: `PositionX = localX - (-minY)` → double-negation error; evaluates to `localX + minY`. For centered pieces `minY < 0`, placing most of the rotated piece at negative canvas_X (off-screen left). Users saw pieces "disappear" when clicking PDO pieces. |
+| **BUG-PDO-3 fix** | `MainViewModel.cs` `RunAutoArrange`: changed to `localX + minY + hNat` (`= localX + maxY`). After a 90° CW `RotateTransform`, canvas_X_min occurs at `ly = maxY`, so `PositionX` must be ≥ `maxY` to keep the piece on-screen. |
+| **Defensive guard** | `PatternCanvasControl.xaml.cs`: added `ScrollToShowPiece(piece)` call in `IsSelected` PropertyChanged handler; added `ScrollToShowPiece` method that centers the viewport on a piece if it's outside the visible scroll area. |
+| **Version** | Bumped `0.0.3.2 → 0.0.3.3` (v0.0.3.B → v0.0.3.C) |
+| **Tests** | 56 / 56 pass |
+
+---
+
 ## Session 34 Changes (archived from SESSION_PROGRESS)
 
 | Item | Detail |

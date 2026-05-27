@@ -130,7 +130,7 @@
                         ToolTip="Align selected pieces — Top edges"/>
                 <Button Style="{StaticResource Icon2D}" Content="⊥" Click="AlignBottom_Click"
                         ToolTip="Align selected pieces — Bottom edges"/>
-                <Button Style="{StaticResource Icon2D}" Content="↕" Click="AlignCenterH_Click"
+                <Button Style="{StaticResource Icon2D}" Content="↔" Click="AlignCenterH_Click"
                         ToolTip="Align selected pieces — Center horizontally"/>
                 <Separator Margin="4,0"/>
                 <Button Style="{StaticResource Icon2D}" Content="✦" Click="AutoArrange_Click"

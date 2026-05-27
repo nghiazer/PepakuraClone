@@ -1,7 +1,7 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-27 (session 36 — UI/UX polish; branch `fix/ui-ux-polish`)
-> **Branch:** `fix/ui-ux-polish`  (base: `main` @ v0.0.3.C → current: v0.0.3.D)
+> **Last updated:** 2026-05-27 (session 37 — Dark/Light theme fix + code review; branch `fix/theme-system`)
+> **Branch:** `fix/theme-system`  (base: `fix/ui-ux-polish` @ v0.0.3.D → current: v0.0.3.E)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
 > **History archive:** see [`BUGS_HISTORY.md`](BUGS_HISTORY.md) for all prior bug/tech-debt records
@@ -56,7 +56,7 @@ No circular dependencies. Domain has zero external dependencies.
 - **Edge-Edit mode** (✏): hover highlight, LMB attach/detach; color in Settings
 - **Rotate-by-Point mode** (⊙): pivot → handle → live rotation; undoable
 - **Auto-align edge** — double-click edge → snap to nearest 90°; undoable
-- **Parts alignment** — 6 toolbar buttons: Align L `◧` / R `◨` / T `⊤` / B `⊥` / Center-H `↕` / Center-V `◫`; undoable
+- **Parts alignment** — 6 toolbar buttons: Align L `◧` / R `◨` / T `⊤` / B `⊥` / Center-H `↔` / Center-V `◫`; undoable
 - **Edge ID labels + glue arrows** on cut edges (pair numbers 1,2,3…); color in Settings
 - **Multi-texture** — per-material texture slots; TextureDialog with material list; per-face texture in 2D
 - **Save/Load `.4hu`** — self-contained ZIP bundle (mesh + texture + state)
@@ -88,8 +88,26 @@ No circular dependencies. Domain has zero external dependencies.
 | `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 7 warnings (NuGet NU1603 only) |
 | `dotnet test` | ✅ 56 / 56 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App opens maximized; PDO files auto-unfold on load |
-| Published `4H-Unfolder.exe` **v0.0.3.C** (win-x64, self-contained) | ✅ Session 35 |
 | Published `4H-Unfolder.exe` **v0.0.3.D** (win-x64, self-contained) | ✅ Session 36 |
+| Published `4H-Unfolder.exe` **v0.0.3.E** (win-x64, self-contained) | ✅ Session 37 |
+
+---
+
+## Session 37 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Branch** | `fix/theme-system` — branched from `fix/ui-ux-polish` @ v0.0.3.D |
+| **Theme root cause** | `ThemeService.Apply()` used `merged.Insert(0, newDict)` → theme inserted at index 0 (lowest priority); App.xaml's static `LightTheme.xaml` at higher index always won every `DynamicResource` lookup → dark theme never applied to any binding except code-set values |
+| **ThemeService core fix** | Changed `merged.Insert(0,…)` → `merged.Add(…)` — last entry wins in WPF `MergedDictionaries`; now the applied theme always overrides App.xaml's static baseline |
+| **4 new theme keys** | Added `WarningTextFg`, `ColorSwatchBorderBrush`, `TransparencyCheckerA/B` to both `DarkTheme.xaml` and `LightTheme.xaml` |
+| **WarningTextFg** | `ModelOrientationDialog.xaml`: hardcoded `#ff6666` → `{DynamicResource WarningTextFg}` — warning text now adjusts shade per theme |
+| **ColorSwatchBorderBrush** | `SettingsDialog.xaml`: 17× `Stroke="#666"` → `{DynamicResource ColorSwatchBorderBrush}` — swatch borders visible in both themes |
+| **CheckerBrush — freeze workaround** | `TextureDialog.xaml.cs`: `ApplyCheckerBrush()` builds `DrawingBrush` in code-behind using `TryFindResource("TransparencyCheckerA/B")`, stores in `Window.Resources["CheckerBrush"]`; XAML uses `{DynamicResource CheckerBrush}`; `OnActivated` override re-builds brush so live theme switch is picked up when dialog is re-focused |
+| **ViewportBorderBrush** | `MainViewModel.cs`: getter now uses `TryFindResource("SplitterBg")` instead of hardcoded `#3d3d5c`; `OnSettingsChanged` notifies binding after `Apply()` |
+| **Code review (simplify)** | `/simplify` audit of all changes: 3 confirmed findings: (1) CheckerBrush not refreshed on live switch — fixed by `OnActivated`; (2) `↕` icon was semantically reversed for CenterH — fixed to `↔`; (3) duplicate LightTheme entry in MergedDictionaries at startup — noted, harmless, deferred |
+| **Version** | `0.0.3.4 → 0.0.3.5` (v0.0.3.D → v0.0.3.E); window title updated |
+| **Tests** | 56 / 56 pass |
 
 ---
 
@@ -103,23 +121,9 @@ No circular dependencies. Domain has zero external dependencies.
 | **ModelOrientationDialog — buttons** | Added `HorizontalContentAlignment="Center"` to OK + Skip; removed whitespace-padding hack from `Content="  OK  "` |
 | **UnfoldSetupDialog — buttons** | Added `HorizontalContentAlignment="Center"` to OK + Cancel |
 | **UnfoldSetupDialog — inputs** | TextBox style: added `VerticalContentAlignment="Center"` + changed `Padding="4,2"→"4,0"` — text vertically centred in 26 px input rows |
-| **2D Align icons** | Replaced non-descriptive icons with semantic Unicode geometry characters: Left `⬛→◧`, CenterV `▪→◫`, Right `⬜→◨`, Top `🔼→⊤`, Bottom `🔽→⊥`, CenterH `↔→↕` |
-| **Audit** | Full grep scan of all `.cs` + `.xaml` for TODO/FIXME/TD-/BUG-/CRITICAL-; no open items found; all markers are documentation of fixed issues |
-| **Version** | `0.0.3.3 → 0.0.3.4` (v0.0.3.C → v0.0.3.D); window title + InformationalVersion updated |
+| **2D Align icons** | Replaced non-descriptive icons with semantic Unicode characters: Left `⬛→◧`, CenterV `▪→◫`, Right `⬜→◨`, Top `🔼→⊤`, Bottom `🔽→⊥`, CenterH `↔→↕` |
+| **Version** | `0.0.3.3 → 0.0.3.4` (v0.0.3.C → v0.0.3.D) |
 | **Tests** | 56 / 56 pass |
-
----
-
-## Session 35 — Changes
-
-| Item | Detail |
-|------|--------|
-| **BUG-PDO-3 root cause** | `RunAutoArrange` rot=90 branch: `PositionX = localX - (-minY)` → double-negation error; evaluates to `localX + minY`. For centered pieces `minY < 0`, placing most of the rotated piece at negative canvas_X (off-screen left). Users saw pieces "disappear" when clicking PDO pieces. |
-| **BUG-PDO-3 fix** | `MainViewModel.cs` `RunAutoArrange`: changed to `localX + minY + hNat` (`= localX + maxY`). After a 90° CW `RotateTransform`, canvas_X_min occurs at `ly = maxY`, so `PositionX` must be ≥ `maxY` to keep the piece on-screen. |
-| **Defensive guard** | `PatternCanvasControl.xaml.cs`: added `ScrollToShowPiece(piece)` call in `IsSelected` PropertyChanged handler; added `ScrollToShowPiece` method that centers the viewport on a piece if it's outside the visible scroll area. |
-| **Why PDO-specific** | PDO paper-model strips are wide (wNat > hNat), frequently hitting the `rot=90` branch. OBJ/FBX mesh pieces are more equidimensional and rarely trigger it. |
-| **Version** | Bumped `0.0.3.2 → 0.0.3.3` (v0.0.3.B → v0.0.3.C) |
-| **Tests** | 56 / 56 pass (no new tests needed — bug is in UI layout arithmetic, no testable pure-logic unit) |
 
 ---
 
@@ -228,4 +232,4 @@ App/Assets/             app.ico (6 sizes) logo.png
 ## Recommended Next Steps
 
 1. **Performance** — Spatial grid / bucket partition for `OverlapDetector`; current O(n²) AABB loop becomes a bottleneck on meshes > 2000 faces
-2. **Merge `fix/ui-ux-polish` → `main`** — branch is stable at v0.0.3.D; all UI/UX polish changes verified
+2. **Merge `fix/theme-system` → `main`** — branch is stable at v0.0.3.E; theme fix + simplify review applied
