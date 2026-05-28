@@ -166,6 +166,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<PieceViewModel> Pieces { get; } = new();
 
+    /// Fired when a new model is loaded so the canvas can scroll back to the origin.
+    public event Action? ViewResetRequested;
+
     // ── grid / snap (fast-path toggles, kept in sync with settings) ───────────
     [ObservableProperty] private bool _gridVisible = true;
     [ObservableProperty] private bool _snapToGrid  = false;
@@ -493,6 +496,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
             CanExport  = false;
             IsUnfolded = false;
             Pieces.Clear();
+            PagesWide   = 1;
+            PagesTall   = 1;
+            PixelsPerMm = _settingsService.Current.View2D.DefaultPixelsPerMm;
+            ViewResetRequested?.Invoke();
 
             UpdateTextureUI(tex, _committedTexturePath, isPreview: false);
             RefreshDerivedVisibility();
@@ -1181,19 +1188,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         foreach (var (piece, minX, minY, wNat, hNat) in items)
         {
-            // Try 90° rotation if it produces a narrower footprint that fits the current row
+            // Try 90° rotation if it produces a narrower footprint that fits both axes
             double pw = wNat, ph = hNat;
             double rot = 0;
-            if (hNat < wNat && hNat <= usableW) // rotating would make it narrower
+            if (hNat < wNat && hNat <= usableW && wNat <= usableH)
             {
                 pw  = hNat;
                 ph  = wNat;
                 rot = 90;
             }
-
-            // Ensure single piece fits on a page
-            pw = Math.Min(pw, usableW);
-            ph = Math.Min(ph, usableH);
 
             // Wrap row within current page
             if (localX > gap && localX + pw > paperW - gap)
@@ -1204,7 +1207,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             }
 
             // Advance to next page column when vertical space exhausted
-            if (localY + ph > paperH - gap)
+            // localY > gap guard prevents infinite advance for oversized pieces placed at top of page
+            if (localY > gap && localY + ph > paperH - gap)
             {
                 pageCol++;
                 newPagesWide = Math.Max(newPagesWide, pageCol + 1);
@@ -1262,6 +1266,55 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         if (rightMm  > rightEdge)  PagesWide++;
         if (bottomMm > bottomEdge) PagesTall++;
+    }
+
+    /// Removes empty page columns and rows after a drag, shifting piece positions accordingly.
+    public void TrimEmptyPages()
+    {
+        double paperW    = PaperSizeModel.WidthMm;
+        double paperH    = PaperSizeModel.HeightMm;
+        double colStride = paperW + PageSepMm;
+        double rowStride = paperH + PageSepMm;
+
+        var active = Pieces.Where(p => p.Faces.Length > 0).ToList();
+        if (active.Count == 0) { PagesWide = 1; PagesTall = 1; return; }
+
+        var occupiedCols = new HashSet<int>();
+        var occupiedRows = new HashSet<int>();
+        foreach (var p in active)
+        {
+            var (minX, maxX, minY, maxY) = p.GetCanvasBounds();
+            for (int c = Math.Max(0, (int)Math.Floor(minX / colStride));
+                     c <= (int)Math.Floor(maxX / colStride); c++)
+                occupiedCols.Add(c);
+            for (int r = Math.Max(0, (int)Math.Floor(minY / rowStride));
+                     r <= (int)Math.Floor(maxY / rowStride); r++)
+                occupiedRows.Add(r);
+        }
+
+        // Remove empty columns from highest index down, shifting pieces in later columns
+        foreach (int col in Enumerable.Range(0, PagesWide)
+                     .Where(c => !occupiedCols.Contains(c))
+                     .OrderByDescending(c => c))
+        {
+            double rightEdge = col * colStride + paperW;
+            foreach (var p in Pieces)
+                if (p.GetCanvasBounds().MinX > rightEdge)
+                    p.PositionX -= colStride;
+            PagesWide = Math.Max(1, PagesWide - 1);
+        }
+
+        // Remove empty rows from highest index down, shifting pieces in later rows
+        foreach (int row in Enumerable.Range(0, PagesTall)
+                     .Where(r => !occupiedRows.Contains(r))
+                     .OrderByDescending(r => r))
+        {
+            double bottomEdge = row * rowStride + paperH;
+            foreach (var p in Pieces)
+                if (p.GetCanvasBounds().MinY > bottomEdge)
+                    p.PositionY -= rowStride;
+            PagesTall = Math.Max(1, PagesTall - 1);
+        }
     }
 
     private ProjectState BuildProjectState()

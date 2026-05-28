@@ -89,6 +89,7 @@ public partial class PatternCanvasControl : UserControl
         {
             old.Pieces.CollectionChanged -= OnPiecesChanged;
             old.PropertyChanged          -= OnVmPropertyChanged;
+            old.ViewResetRequested       -= OnViewReset;
         }
 
         _vm = e.NewValue as MainViewModel;
@@ -99,6 +100,7 @@ public partial class PatternCanvasControl : UserControl
 
         _vm.Pieces.CollectionChanged += OnPiecesChanged;
         _vm.PropertyChanged          += OnVmPropertyChanged;
+        _vm.ViewResetRequested       += OnViewReset;
 
         RebuildAll();
     }
@@ -108,6 +110,15 @@ public partial class PatternCanvasControl : UserControl
         // Suppress per-Add/Clear rebuilds during batch RebuildPieces; PiecesVersion fires one rebuild
         if (_vm?.BatchingPieces == true) return;
         Dispatcher.Invoke(RebuildAll);
+    }
+
+    private void OnViewReset()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            Scroller.ScrollToTop();
+            Scroller.ScrollToLeftEnd();
+        });
     }
 
     private void OnVmPropertyChanged(object? s, PropertyChangedEventArgs e)
@@ -823,6 +834,7 @@ public partial class PatternCanvasControl : UserControl
                     piece.PositionX + cxs.Zip(cys, (x, y) => x * cosR - y * sinR).Max(),
                     piece.PositionY + cxs.Zip(cys, (x, y) => x * sinR + y * cosR).Max());
             }
+            _vm.TrimEmptyPages();
         }
 
         _preDragPositions = null;

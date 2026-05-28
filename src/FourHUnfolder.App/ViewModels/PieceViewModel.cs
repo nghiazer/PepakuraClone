@@ -84,6 +84,26 @@ public partial class PieceViewModel : ObservableObject
         }
     }
 
+    // ── canvas bounds ────────────────────────────────────────────────────────
+
+    /// Returns the rotated axis-aligned bounding box in canvas mm coordinates.
+    public (double MinX, double MaxX, double MinY, double MaxY) GetCanvasBounds()
+    {
+        if (Faces.Length == 0) return (PositionX, PositionX, PositionY, PositionY);
+        var allX = Faces.SelectMany(f => new[] { f.V0.X, f.V1.X, f.V2.X });
+        var allY = Faces.SelectMany(f => new[] { f.V0.Y, f.V1.Y, f.V2.Y });
+        double lMinX = allX.Min(), lMaxX = allX.Max();
+        double lMinY = allY.Min(), lMaxY = allY.Max();
+        double rad = Rotation * Math.PI / 180.0;
+        double cos = Math.Cos(rad), sin = Math.Sin(rad);
+        double[] xs = { lMinX, lMaxX, lMinX, lMaxX };
+        double[] ys = { lMinY, lMinY, lMaxY, lMaxY };
+        var cx = xs.Zip(ys, (x, y) => x * cos - y * sin).ToList();
+        var cy = xs.Zip(ys, (x, y) => x * sin + y * cos).ToList();
+        return (PositionX + cx.Min(), PositionX + cx.Max(),
+                PositionY + cy.Min(), PositionY + cy.Max());
+    }
+
     // ── factory ──────────────────────────────────────────────────────────────
 
     public static PieceViewModel Create(
