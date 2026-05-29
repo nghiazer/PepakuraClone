@@ -163,7 +163,7 @@ public partial class ModelOrientationDialog : Window
         DialogResult = true;
     }
 
-    private void Skip_Click(object sender, RoutedEventArgs e)
+    private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         Applied      = false;
         DialogResult = false;

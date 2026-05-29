@@ -1,7 +1,7 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-29 (session 40 — Remove 2D canvas inner bounder layer; branch `fix/perf-overlap-detector`)
-> **Branch:** `fix/perf-overlap-detector`  (base: `fix/theme-system` @ v0.0.3.F → current: v0.0.3.H)
+> **Last updated:** 2026-05-29 (session 43 — Dialog UX refactor × 3: ModelOrientation + UnfoldSetup + AssemblyAnimation; branch `feat/toolbar-ux`)
+> **Branch:** `feat/toolbar-ux`  (base: `fix/perf-overlap-detector` @ v0.0.3.H → current: v0.0.4.C)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
 > **History archive:** see [`BUGS_HISTORY.md`](BUGS_HISTORY.md) for all prior bug/tech-debt records
@@ -87,36 +87,46 @@ No circular dependencies. Domain has zero external dependencies.
 
 | Item | Result |
 |------|--------|
-| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 7 warnings (NuGet NU1603 only) |
+| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 5 warnings (NuGet NU1603 only) |
 | `dotnet test` | ✅ 56 / 56 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App opens maximized; PDO files auto-unfold on load |
-| Published `4H-Unfolder.exe` **v0.0.3.G** (win-x64, self-contained) | ✅ Session 39 |
 | Published `4H-Unfolder.exe` **v0.0.3.H** (win-x64, self-contained) | ✅ Session 40 |
+| Published `4H-Unfolder.exe` **v0.0.4.A** (win-x64, self-contained) | ✅ Session 41 |
+| Published `4H-Unfolder.exe` **v0.0.4.B** (win-x64, self-contained) | ✅ Session 42 |
+| Published `4H-Unfolder.exe` **v0.0.4.C** (win-x64, self-contained) | ✅ Session 43 |
 
 ---
 
-## Session 40 — Changes
+## Session 43 — Changes
 
 | Item | Detail |
 |------|--------|
-| **Branch** | `fix/perf-overlap-detector` continuing @ v0.0.3.G → v0.0.3.H |
-| **Remove 2D canvas inner bounder** | `DrawPaper()` (`PatternCanvasControl.xaml.cs`): changed `RootCanvas.Background = HexBrush(canvasBg)` → `Scroller.Background = HexBrush(canvasBg)` + `RootCanvas.Background = Brushes.Transparent`. Previously `RootCanvas` had a fixed Width/Height forming a visible rectangle against `Canvas2DScrollerBg`, creating the "inner bounder" look. Now the whole 2D view is one uniform color. |
-| **Theme sync** | `DarkTheme.xaml`: `Canvas2DScrollerBg` `#2a2a4a` → `#3a3a5a`; `LightTheme.xaml`: `Canvas2DScrollerBg` `#cdd2de` → `#e8eaf0` — theme fallback before code-behind runs is now seamless with `CanvasBackground` defaults. |
-| **Settings label** | `SettingsDialog.xaml`: "Canvas background" → "2D view background" to reflect new scope. |
-| **Code review** | No issues found in either this session's canvas change or session 39's OverlapDetector change. |
-| **Version** | `0.0.3.7 → 0.0.3.8` (v0.0.3.G → v0.0.3.H) |
+| **Branch** | `feat/toolbar-ux` continuing @ v0.0.4.B → v0.0.4.C |
+| **Toolbar icon fix** | `MainWindow.xaml`: Unfold button icon `⚙` → `📐` — eliminates confusion with Settings `⚙` icon |
+| **ModelOrientationDialog refactor** | (session 43, committed `aed9582`) Layout overhaul: `Skip` → `Cancel` (neutral style); `OK` → `Import` (accent, Height 30→34); `AXIS REFERENCE` TextWrapping=Wrap + Height=Auto; FlipUV checkbox+tip moved into right column under Front axis (no gray box); `Don't ask again` to footer left; description + tip `TextMuted` → `TextSecondary` |
+| **UnfoldSetupDialog refactor** | Unified 2-col grid (130px label / `*` control): row order Preset → Orientation → Custom Size (logical top-down flow). `CustomInput` style adds `Opacity=0.45` when `IsEnabled=False` — locked fields visually dimmed. Footer buttons Height 30→34 + `VerticalContentAlignment=Center`. |
+| **AssemblyAnimationWindow refactor** | Legend overlay removed from viewport (100% clean 3D space). New Row 2: Step Timeline Slider (Minimum=0, Maximum=`StepMaxIndex`, TwoWay bind `CurrentStep`, IsSnapToTickEnabled). Controls toolbar → 3-column Grid: step description left · 5 nav buttons centre · 3-item legend right. Step description moved from separate Row 1 Border into toolbar left col. |
+| **AssemblyViewModel: StepMaxIndex** | New computed property `StepMaxIndex = Math.Max(Length-1, 0)` for Slider Maximum binding |
+| **AssemblyViewModel: OnCurrentStepChanged** | New `partial void OnCurrentStepChanged(int)` — Slider drag triggers `_animT=1.0` + `RefreshModel()`. Guard `_suppressStepRefresh` prevents double-render when timer internally increments `CurrentStep`. |
+| **Bug fix (review)** | Timer tick sets `CurrentStep++` wrapped with `_suppressStepRefresh=true/false` — prevents `OnCurrentStepChanged` double-calling `RefreshModel()` during auto-play |
+| **Publish cleanup** | `publish/v0.0.2.A–H` → `publish/v0.0.2.zip` (530 MB); `publish/v0.0.3.A–H` → `publish/v0.0.3.zip` (529 MB); 16 folders deleted |
+| **Version** | `0.0.4.1 → 0.0.4.2` (v0.0.4.B → v0.0.4.C) |
 | **Tests** | 56 / 56 pass |
 
 ---
 
-## Session 39 — Changes
+## Session 42 — Changes
 
 | Item | Detail |
 |------|--------|
-| **Branch** | `fix/perf-overlap-detector` — branched from `fix/theme-system` @ v0.0.3.F |
-| **Spatial grid for OverlapDetector** | Replaced O(n²) nested loop with uniform bucket-partition broad phase. Each face is inserted into all grid cells its AABB covers (typically 1–4 cells); only pairs that share a cell are tested. Cell size = `max(2 × avgAABBSide, maxExtent / 256)` — keeps grid ≤ 256×256. Candidate pairs deduplicated with `HashSet<long>` (encodes canonical `i < j` pair as `(long)i<<32 | j`). AABB pre-check + SAT follow, identical to before. On spread-out geometry with n=2000 faces: ~4 000 comparisons vs 2 000 000 (~500× speedup). |
-| **Correctness guarantee** | If two AABBs overlap they must share ≥ 1 grid cell → no false negatives. Degenerate geometry guard: `cellSize` clamped to ≥ 1e-6. All 4 existing `OverlapDetectorTests` pass unchanged. |
-| **Version** | `0.0.3.6 → 0.0.3.7` (v0.0.3.F → v0.0.3.G) |
+| **Branch** | `feat/toolbar-ux` continuing @ v0.0.4.A → v0.0.4.B |
+| **GroupBox consolidation** | `SettingsDialog.xaml`: reduced from 22 GroupBoxes across 4 tabs → 8 GroupBoxes (3D: 6→2, 2D: 9→3, Print: 5→2, General: 2→1). Sub-headings use new `SubHead` TextBlock style instead of nested GroupBox. |
+| **Unified grid layout** | Each GroupBox now uses a single outer Grid with fixed 3-column layout (190px label / `*` control / 64px numeric) + RowDefinitions. Eliminates per-row `<Grid.ColumnDefinitions>` repetition and the mix of 190/28/110, 190/140/40, 190/140/50 etc. widths. |
+| **Slider + NumericBox two-way** | All 19 sliders: static TextBlock → `NumericBox` TextBox with `Mode=TwoWay, UpdateSourceTrigger=LostFocus`. Kéo slider → textbox cập nhật; gõ số → Tab/click ra → slider nhảy. New `NumericBox` style (BasedOn InputBox, Width=58, TextAlignment=Right). |
+| **Footer buttons fix** | Height 30→34 for all 4 buttons (OK/Apply/Cancel/Reset). Added `HorizontalContentAlignment="Center" VerticalContentAlignment="Center"`. Removed space-padding hack `"  OK  "` → `"OK"`. Fixes "Applv" clipping bug. |
+| **Scroll reset on tab switch** | `SettingsDialog.xaml.cs` `NavList_SelectionChanged`: added `ContentScroller.ScrollToVerticalOffset(0)`. ScrollViewer named `x:Name="ContentScroller"`. |
+| **Bug fix (review)** | `ContentScroller.ScrollToTop()` không phải WPF API → fixed to `ScrollToVerticalOffset(0)`. |
+| **Version** | `0.0.4.0 → 0.0.4.1` (v0.0.4.A → v0.0.4.B) |
 | **Tests** | 56 / 56 pass |
 
 ---
@@ -221,5 +231,6 @@ App/Assets/             app.ico (6 sizes) logo.png
 
 ## Recommended Next Steps
 
-1. **Merge `fix/perf-overlap-detector` → `main`** — branch is stable at v0.0.3.H; spatial grid + canvas bounder removal applied
+1. **Merge `feat/toolbar-ux` → `main`** — branch is stable at v0.0.4.C; all dialog UX overhauls complete
 2. **Multi-page auto-layout** — allow pieces to flow across multiple pages automatically during auto-arrange
+3. **UX polish** — 3D viewport navigation controls (trackpad pinch-zoom, keyboard shortcuts)

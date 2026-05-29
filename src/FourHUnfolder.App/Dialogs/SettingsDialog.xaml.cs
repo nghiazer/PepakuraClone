@@ -44,6 +44,7 @@ public partial class SettingsDialog : Window
         Panel2D     .Visibility = idx == 1 ? Visibility.Visible : Visibility.Collapsed;
         PanelPrint  .Visibility = idx == 2 ? Visibility.Visible : Visibility.Collapsed;
         PanelGeneral.Visibility = idx == 3 ? Visibility.Visible : Visibility.Collapsed;
+        ContentScroller.ScrollToVerticalOffset(0);
     }
 
     // ── Buttons ───────────────────────────────────────────────────────────────

@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:FourHUnfolder.App.Converters"
         Title="Settings"
-        Width="720" Height="580"
-        MinWidth="620" MinHeight="460"
+        Width="720" Height="600"
+        MinWidth="620" MinHeight="480"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource DialogBg}"
         Foreground="{DynamicResource TextPrimary}">
@@ -42,25 +42,40 @@
 
         <!-- Field label -->
         <Style x:Key="FieldLabel" TargetType="TextBlock">
-            <Setter Property="Foreground"           Value="{DynamicResource FieldLabelFg}"/>
-            <Setter Property="FontSize"             Value="12"/>
-            <Setter Property="VerticalAlignment"    Value="Center"/>
-            <Setter Property="Margin"               Value="0,0,8,0"/>
+            <Setter Property="Foreground"        Value="{DynamicResource FieldLabelFg}"/>
+            <Setter Property="FontSize"          Value="12"/>
+            <Setter Property="FontWeight"        Value="Normal"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Sub-heading inside a GroupBox (replaces nested GroupBox) -->
+        <Style x:Key="SubHead" TargetType="TextBlock">
+            <Setter Property="Foreground"  Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize"    Value="11"/>
+            <Setter Property="FontWeight"  Value="SemiBold"/>
+            <Setter Property="Margin"      Value="0,10,0,4"/>
         </Style>
 
         <!-- Input TextBox -->
         <Style x:Key="InputBox" TargetType="TextBox">
-            <Setter Property="Background"   Value="{DynamicResource InputBg}"/>
-            <Setter Property="Foreground"   Value="{DynamicResource InputFg}"/>
-            <Setter Property="BorderBrush"  Value="{DynamicResource InputBorder}"/>
-            <Setter Property="Padding"      Value="4,3"/>
-            <Setter Property="Height"       Value="26"/>
+            <Setter Property="Background"            Value="{DynamicResource InputBg}"/>
+            <Setter Property="Foreground"            Value="{DynamicResource InputFg}"/>
+            <Setter Property="BorderBrush"           Value="{DynamicResource InputBorder}"/>
+            <Setter Property="Padding"               Value="4,3"/>
+            <Setter Property="Height"                Value="26"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
-        <!-- Slider style (subtle) -->
+        <!-- Numeric TextBox for slider companion -->
+        <Style x:Key="NumericBox" TargetType="TextBox" BasedOn="{StaticResource InputBox}">
+            <Setter Property="Width"       Value="58"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+        </Style>
+
+        <!-- Slider style -->
         <Style x:Key="SettingSlider" TargetType="Slider">
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Width"             Value="140"/>
+            <Setter Property="Margin"            Value="0,0,8,0"/>
         </Style>
 
         <!-- CheckBox -->
@@ -73,11 +88,10 @@
 
         <!-- ComboBox -->
         <Style TargetType="ComboBox">
-            <Setter Property="Background"   Value="{DynamicResource InputBg}"/>
-            <Setter Property="Foreground"   Value="{DynamicResource InputFg}"/>
-            <Setter Property="BorderBrush"  Value="{DynamicResource InputBorder}"/>
-            <Setter Property="Height"       Value="26"/>
-            <Setter Property="Width"        Value="160"/>
+            <Setter Property="Background"  Value="{DynamicResource InputBg}"/>
+            <Setter Property="Foreground"  Value="{DynamicResource InputFg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
+            <Setter Property="Height"      Value="26"/>
         </Style>
     </Window.Resources>
 
@@ -130,11 +144,11 @@
         </Border>
 
         <!-- ═══ Right content ════════════════════════════════════════ -->
-        <ScrollViewer Grid.Row="0" Grid.Column="1"
+        <ScrollViewer x:Name="ContentScroller"
+                      Grid.Row="0" Grid.Column="1"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="16,12">
-            <!-- Single Grid child — all panels share the same cell and toggle Visibility -->
             <Grid>
 
             <!-- ── 3D View Panel ──────────────────────────────────── -->
@@ -142,238 +156,200 @@
                 <TextBlock Text="3D View" FontSize="18" FontWeight="Bold"
                            Foreground="{DynamicResource PanelHeadFg}" Margin="0,0,0,14"/>
 
-                <!-- Background & chrome -->
-                <GroupBox Header="Viewport">
-                    <StackPanel>
-                        <!-- Color row template (reused via copy) -->
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Background color"
-                                       Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                <!-- GroupBox 1: Environment -->
+                <GroupBox Header="Environment">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Background color -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Background color" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
                                        Fill="{Binding Background3D, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2"
-                                     Style="{StaticResource InputBox}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
                                      Text="{Binding Background3D, UpdateSourceTrigger=PropertyChanged}"
                                      MaxLength="9" ToolTip="#AARRGGBB or #RRGGBB"/>
-                        </Grid>
+                        </StackPanel>
 
-                        <CheckBox Content="Show coordinate system"
+                        <!-- Show coordinate system -->
+                        <CheckBox Grid.Row="1" Grid.ColumnSpan="3" Content="Show coordinate system"
                                   IsChecked="{Binding ShowCoordSystem}"/>
-                        <CheckBox Content="Show view cube"
+
+                        <!-- Show view cube -->
+                        <CheckBox Grid.Row="2" Grid.ColumnSpan="3" Content="Show view cube"
                                   IsChecked="{Binding ShowViewCube}"/>
-                    </StackPanel>
+                    </Grid>
                 </GroupBox>
 
-                <!-- Mesh appearance -->
-                <GroupBox Header="Mesh Appearance">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Display mode" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding DisplayModes}"
-                                      SelectedItem="{Binding DisplayMode3D}"/>
-                        </Grid>
+                <!-- GroupBox 2: Mesh, Camera & Lighting -->
+                <GroupBox Header="Mesh, Camera &amp; Lighting">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <!-- sub-head Camera -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <!-- sub-head Edge Overlay -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <!-- sub-head Edge Edit -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <!-- sub-head Lighting -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
 
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Face color" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                        <!-- Display mode -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Display mode" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"
+                                  HorizontalAlignment="Left" Width="160"
+                                  ItemsSource="{Binding DisplayModes}"
+                                  SelectedItem="{Binding DisplayMode3D}"/>
+
+                        <!-- Face color -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Face color" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
                                        Fill="{Binding FaceColor3D, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
                                      Text="{Binding FaceColor3D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
+                        </StackPanel>
 
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Back-face color" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                        <!-- Back-face color -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Back-face color" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
                                        Fill="{Binding BackFaceColor3D, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
                                      Text="{Binding BackFaceColor3D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
+                        </StackPanel>
 
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Face opacity" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0" Maximum="1"
-                                    Value="{Binding FaceOpacity}" TickFrequency="0.1"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding FaceOpacity, StringFormat={}{0:F2}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
+                        <!-- Face opacity -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Face opacity" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="3" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0" Maximum="1" TickFrequency="0.1"
+                                Value="{Binding FaceOpacity, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="3" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding FaceOpacity, StringFormat={}{0:F2}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
 
-                <!-- Camera -->
-                <GroupBox Header="Camera">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="50"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Field of view (°)" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="5" Maximum="120" TickFrequency="5"
-                                    Value="{Binding CameraFOV}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding CameraFOV, StringFormat={}{0:F0}°}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="50"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Near clip plane" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0.001" Maximum="5" Value="{Binding CameraNearPlane}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding CameraNearPlane, StringFormat={}{0:F3}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="60"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Far clip plane" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="100" Maximum="100000" Value="{Binding CameraFarPlane}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding CameraFarPlane, StringFormat={}{0:F0}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
+                        <!-- Sub-head: Camera -->
+                        <TextBlock Grid.Row="4" Grid.ColumnSpan="3" Text="Camera" Style="{StaticResource SubHead}"/>
 
-                <!-- Edge overlay (active when SolidEdges mode) -->
-                <GroupBox Header="Edge Overlay  (active when Display Mode = SolidEdges)">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Edge color" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                        <!-- Field of view -->
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Field of view (°)" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="5" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="5" Maximum="120" TickFrequency="5"
+                                Value="{Binding CameraFOV, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="5" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding CameraFOV, StringFormat={}{0:F0}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Near clip plane -->
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Near clip plane" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="6" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0.001" Maximum="5"
+                                Value="{Binding CameraNearPlane, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="6" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding CameraNearPlane, StringFormat={}{0:F3}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Far clip plane -->
+                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Far clip plane" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="7" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="100" Maximum="100000"
+                                Value="{Binding CameraFarPlane, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="7" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding CameraFarPlane, StringFormat={}{0:F0}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Sub-head: Edge Overlay -->
+                        <TextBlock Grid.Row="8" Grid.ColumnSpan="3" Text="Edge Overlay  (active when Display Mode = SolidEdges)" Style="{StaticResource SubHead}"/>
+
+                        <!-- Edge color -->
+                        <TextBlock Grid.Row="9" Grid.Column="0" Text="Edge color" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
                                        Fill="{Binding EdgeOverlayColor, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
                                      Text="{Binding EdgeOverlayColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Edge thickness" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0.1" Maximum="3"
-                                    Value="{Binding EdgeOverlayThickness}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding EdgeOverlayThickness, StringFormat={}{0:F1}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
+                        </StackPanel>
 
-                <!-- 3D Edge Edit Mode -->
-                <GroupBox Header="3D Edge Edit Mode  (hover an edge → LMB to detach/attach)">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Detachable edge color" Style="{StaticResource FieldLabel}"
-                                       ToolTip="Color shown when hovering over a fold edge that can be detached (made into a cut)"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                        <!-- Edge thickness -->
+                        <TextBlock Grid.Row="10" Grid.Column="0" Text="Edge thickness" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="10" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0.1" Maximum="3"
+                                Value="{Binding EdgeOverlayThickness, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="10" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding EdgeOverlayThickness, StringFormat={}{0:F1}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Sub-head: 3D Edge Edit Mode -->
+                        <TextBlock Grid.Row="11" Grid.ColumnSpan="3" Text="3D Edge Edit Mode  (hover an edge → LMB to detach/attach)" Style="{StaticResource SubHead}"/>
+
+                        <!-- Detachable edge color -->
+                        <TextBlock Grid.Row="12" Grid.Column="0" Text="Detachable edge color" Style="{StaticResource FieldLabel}"
+                                   ToolTip="Color when hovering a fold edge that can be detached"/>
+                        <StackPanel Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
                                        Fill="{Binding EdgeHoverDetachColor3D, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
                                      Text="{Binding EdgeHoverDetachColor3D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Attachable edge color" Style="{StaticResource FieldLabel}"
-                                       ToolTip="Color shown when hovering over a cut edge that can be re-attached (made into a fold)"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
-                                       Fill="{Binding EdgeHoverAttachColor3D, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
-                                     Text="{Binding EdgeHoverAttachColor3D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
+                        </StackPanel>
 
-                <!-- Lighting -->
-                <GroupBox Header="Lighting">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Ambient intensity" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0" Maximum="1"
-                                    Value="{Binding AmbientIntensity}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding AmbientIntensity, StringFormat={}{0:F2}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Directional intensity" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0" Maximum="2"
-                                    Value="{Binding DirectionalIntensity}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding DirectionalIntensity, StringFormat={}{0:F2}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                    </StackPanel>
+                        <!-- Attachable edge color -->
+                        <TextBlock Grid.Row="13" Grid.Column="0" Text="Attachable edge color" Style="{StaticResource FieldLabel}"
+                                   ToolTip="Color when hovering a cut edge that can be re-attached"/>
+                        <StackPanel Grid.Row="13" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
+                                       Fill="{Binding EdgeHoverAttachColor3D, Converter={StaticResource HexBrush}}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
+                                     Text="{Binding EdgeHoverAttachColor3D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </StackPanel>
+
+                        <!-- Sub-head: Lighting -->
+                        <TextBlock Grid.Row="14" Grid.ColumnSpan="3" Text="Lighting" Style="{StaticResource SubHead}"/>
+
+                        <!-- Ambient intensity -->
+                        <TextBlock Grid.Row="15" Grid.Column="0" Text="Ambient intensity" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="15" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0" Maximum="1"
+                                Value="{Binding AmbientIntensity, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="15" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding AmbientIntensity, StringFormat={}{0:F2}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Directional intensity -->
+                        <TextBlock Grid.Row="16" Grid.Column="0" Text="Directional intensity" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="16" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0" Maximum="2"
+                                Value="{Binding DirectionalIntensity, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="16" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding DirectionalIntensity, StringFormat={}{0:F2}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                    </Grid>
                 </GroupBox>
             </StackPanel>
 
@@ -382,263 +358,245 @@
                 <TextBlock Text="2D View" FontSize="18" FontWeight="Bold"
                            Foreground="{DynamicResource PanelHeadFg}" Margin="0,0,0,14"/>
 
-                <GroupBox Header="Canvas">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="2D view background" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
-                                       Fill="{Binding CanvasBackground, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
-                                     Text="{Binding CanvasBackground, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Paper color" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
-                                       Fill="{Binding PaperColor, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
-                                     Text="{Binding PaperColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Default zoom (px/mm)" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0.5" Maximum="10"
-                                    Value="{Binding DefaultPixelsPerMm}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding DefaultPixelsPerMm, StringFormat={}{0:F1}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
-
-                <GroupBox Header="Grid">
-                    <StackPanel>
-                        <CheckBox Content="Show grid" IsChecked="{Binding ShowGrid}"/>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Grid color (ARGB)" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
-                                       Fill="{Binding GridColor, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
-                                     Text="{Binding GridColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Grid spacing (mm)" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="1" Maximum="50"
-                                    Value="{Binding GridSizeMm}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding GridSizeMm, StringFormat={}{0:F0}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
-
-                <GroupBox Header="Face Fill">
-                    <Grid Margin="0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="190"/>
-                            <ColumnDefinition Width="28"/>
-                            <ColumnDefinition Width="110"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Face fill color (ARGB)" Style="{StaticResource FieldLabel}"/>
-                        <Rectangle Grid.Column="1" Width="22" Height="22"
-                                   Fill="{Binding FaceFillColor, Converter={StaticResource HexBrush}}"
-                                   Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                        <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
-                                 Text="{Binding FaceFillColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                    </Grid>
-                </GroupBox>
-
-                <GroupBox Header="Fold Edges">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Fold line color" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
-                                       Fill="{Binding FoldLineColor2D, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
-                                     Text="{Binding FoldLineColor2D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Fold line width" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0.3" Maximum="4"
-                                    Value="{Binding FoldLineWidth2D}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding FoldLineWidth2D, StringFormat={}{0:F1}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Fold line dash" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding DashPatterns}"
-                                      SelectedItem="{Binding FoldLineDash2D}"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
-
-                <GroupBox Header="Cut Edges">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Cut line color" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
-                                       Fill="{Binding CutLineColor2D, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
-                                     Text="{Binding CutLineColor2D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Cut line width" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0.3" Maximum="4"
-                                    Value="{Binding CutLineWidth2D}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding CutLineWidth2D, StringFormat={}{0:F1}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
-
-                <GroupBox Header="Edge Edit Mode">
-                    <Grid Margin="0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="190"/>
-                            <ColumnDefinition Width="28"/>
-                            <ColumnDefinition Width="110"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Edge hover highlight color" Style="{StaticResource FieldLabel}"/>
-                        <Rectangle Grid.Column="1" Width="22" Height="22"
-                                   Fill="{Binding EdgeHoverColor, Converter={StaticResource HexBrush}}"
-                                   Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                        <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
-                                 Text="{Binding EdgeHoverColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                    </Grid>
-                </GroupBox>
-
-                <GroupBox Header="Paper Size">
-                    <Grid Margin="0,4">
+                <!-- GroupBox 1: Canvas & Grid Setup -->
+                <GroupBox Header="Canvas &amp; Grid Setup">
+                    <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="190"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Default paper size" Style="{StaticResource FieldLabel}"/>
-                        <ComboBox Grid.Column="1"
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 2D view background -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="2D view background" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
+                                       Fill="{Binding CanvasBackground, Converter={StaticResource HexBrush}}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
+                                     Text="{Binding CanvasBackground, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </StackPanel>
+
+                        <!-- Paper color -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Paper color" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
+                                       Fill="{Binding PaperColor, Converter={StaticResource HexBrush}}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
+                                     Text="{Binding PaperColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </StackPanel>
+
+                        <!-- Default zoom -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Default zoom (px/mm)" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="2" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0.5" Maximum="10"
+                                Value="{Binding DefaultPixelsPerMm, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="2" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding DefaultPixelsPerMm, StringFormat={}{0:F1}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Show grid -->
+                        <CheckBox Grid.Row="3" Grid.ColumnSpan="3" Content="Show grid"
+                                  IsChecked="{Binding ShowGrid}"/>
+
+                        <!-- Grid color -->
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Grid color (ARGB)" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
+                                       Fill="{Binding GridColor, Converter={StaticResource HexBrush}}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
+                                     Text="{Binding GridColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </StackPanel>
+
+                        <!-- Grid spacing -->
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Grid spacing (mm)" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="5" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="1" Maximum="50"
+                                Value="{Binding GridSizeMm, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="5" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding GridSizeMm, StringFormat={}{0:F0}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Face fill color -->
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Face fill color (ARGB)" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
+                                       Fill="{Binding FaceFillColor, Converter={StaticResource HexBrush}}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
+                                     Text="{Binding FaceFillColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </StackPanel>
+
+                        <!-- Default paper size -->
+                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Default paper size" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="2"
+                                  HorizontalAlignment="Left" Width="160"
                                   ItemsSource="{Binding PaperSizeNames}"
                                   SelectedItem="{Binding DefaultPaperSizeName}"/>
                     </Grid>
                 </GroupBox>
 
-                <GroupBox Header="Piece Layout">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="50"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Gap between pieces (mm)" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0" Maximum="30" Value="{Binding PieceGapMm}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding PieceGapMm, StringFormat={}{0:F0}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <CheckBox Content="Snap pieces to grid when dragging"
-                                  IsChecked="{Binding SnapToGrid}"
-                                  ToolTip="When enabled, piece centroids snap to the nearest grid intersection while dragging"/>
-                    </StackPanel>
-                </GroupBox>
+                <!-- GroupBox 2: Lines & Interaction -->
+                <GroupBox Header="Lines &amp; Interaction">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <!-- sub-head Fold Edges -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <!-- sub-head Cut Edges -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <!-- sub-head Edge Edit & IDs -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
 
-                <GroupBox Header="Glue Tabs &amp; Annotations">
-                    <StackPanel>
-                        <CheckBox Content="Show glue tabs" IsChecked="{Binding ShowGlueTabs}"/>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Glue tab color (ARGB)" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
-                                       Fill="{Binding GlueTabColor, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
-                                     Text="{Binding GlueTabColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <CheckBox Content="Show face numbers" IsChecked="{Binding ShowFaceNumbers}"/>
-                    </StackPanel>
-                </GroupBox>
+                        <!-- Sub-head: Fold Edges -->
+                        <TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="Fold Edges" Style="{StaticResource SubHead}"/>
 
-                <GroupBox Header="Edge ID Labels  (assembly numbering on cut edges)">
-                    <StackPanel>
-                        <CheckBox Content="Show edge ID numbers on cut edges"
+                        <!-- Fold line color -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Fold line color" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
+                                       Fill="{Binding FoldLineColor2D, Converter={StaticResource HexBrush}}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
+                                     Text="{Binding FoldLineColor2D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </StackPanel>
+
+                        <!-- Fold line width -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Fold line width" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="2" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0.3" Maximum="4"
+                                Value="{Binding FoldLineWidth2D, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="2" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding FoldLineWidth2D, StringFormat={}{0:F1}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Fold line dash -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Fold line dash" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                                  HorizontalAlignment="Left" Width="160"
+                                  ItemsSource="{Binding DashPatterns}"
+                                  SelectedItem="{Binding FoldLineDash2D}"/>
+
+                        <!-- Sub-head: Cut Edges -->
+                        <TextBlock Grid.Row="4" Grid.ColumnSpan="3" Text="Cut Edges" Style="{StaticResource SubHead}"/>
+
+                        <!-- Cut line color -->
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Cut line color" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
+                                       Fill="{Binding CutLineColor2D, Converter={StaticResource HexBrush}}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
+                                     Text="{Binding CutLineColor2D, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </StackPanel>
+
+                        <!-- Cut line width -->
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Cut line width" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="6" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0.3" Maximum="4"
+                                Value="{Binding CutLineWidth2D, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="6" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding CutLineWidth2D, StringFormat={}{0:F1}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Sub-head: Edge Edit Mode & IDs -->
+                        <TextBlock Grid.Row="7" Grid.ColumnSpan="3" Text="Edge Edit Mode &amp; ID Labels" Style="{StaticResource SubHead}"/>
+
+                        <!-- Edge hover highlight -->
+                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Edge hover highlight" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
+                                       Fill="{Binding EdgeHoverColor, Converter={StaticResource HexBrush}}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
+                                     Text="{Binding EdgeHoverColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </StackPanel>
+
+                        <!-- Show edge ID numbers -->
+                        <CheckBox Grid.Row="9" Grid.ColumnSpan="3" Content="Show edge ID numbers on cut edges"
                                   IsChecked="{Binding ShowEdgeIds}"
                                   ToolTip="Displays matching pair numbers on cut edges so you know which edges to glue together"/>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Edge ID color (ARGB)" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
+
+                        <!-- Edge ID color -->
+                        <TextBlock Grid.Row="10" Grid.Column="0" Text="Edge ID color (ARGB)" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
                                        Fill="{Binding EdgeIdColor, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
                                      Text="{Binding EdgeIdColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                    </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </GroupBox>
+
+                <!-- GroupBox 3: Layout & Annotations -->
+                <GroupBox Header="Layout &amp; Annotations">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Gap between pieces -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Gap between pieces (mm)" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="0" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0" Maximum="30"
+                                Value="{Binding PieceGapMm, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="0" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding PieceGapMm, StringFormat={}{0:F0}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Snap to grid -->
+                        <CheckBox Grid.Row="1" Grid.ColumnSpan="3" Content="Snap pieces to grid when dragging"
+                                  IsChecked="{Binding SnapToGrid}"
+                                  ToolTip="When enabled, piece centroids snap to the nearest grid intersection while dragging"/>
+
+                        <!-- Show glue tabs -->
+                        <CheckBox Grid.Row="2" Grid.ColumnSpan="3" Content="Show glue tabs"
+                                  IsChecked="{Binding ShowGlueTabs}"/>
+
+                        <!-- Glue tab color -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Glue tab color (ARGB)" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
+                                       Fill="{Binding GlueTabColor, Converter={StaticResource HexBrush}}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
+                                     Text="{Binding GlueTabColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
+                        </StackPanel>
+
+                        <!-- Show face numbers -->
+                        <CheckBox Grid.Row="4" Grid.ColumnSpan="3" Content="Show face numbers"
+                                  IsChecked="{Binding ShowFaceNumbers}"/>
+                    </Grid>
                 </GroupBox>
             </StackPanel>
 
@@ -647,181 +605,165 @@
                 <TextBlock Text="Print / Export" FontSize="18" FontWeight="Bold"
                            Foreground="{DynamicResource PanelHeadFg}" Margin="0,0,0,14"/>
 
-                <GroupBox Header="Page Layout">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Page margin (mm)" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0" Maximum="40"
-                                    Value="{Binding MarginMm}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding MarginMm, StringFormat={}{0:F0}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Bleed (mm)" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0" Maximum="10"
-                                    Value="{Binding BleedMm}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding BleedMm, StringFormat={}{0:F1}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="SVG scale (px per mm)" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="1" Maximum="30"
-                                    Value="{Binding SvgScaleFactor}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding SvgScaleFactor, StringFormat={}{0:F0}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
+                <!-- GroupBox 1: Page Layout & Tab Geometry -->
+                <GroupBox Header="Page Layout &amp; Tab Geometry">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <!-- sub-head Glue Tab -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
 
-                <GroupBox Header="Glue Tab Geometry">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Tab shape" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding TabShapes}"
-                                      SelectedItem="{Binding GlueTabShape}"
-                                      ToolTip="Trapezoid = inset corners; Rectangle = full-width; Triangle = pointed tip"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Tab depth (mm)" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="1" Maximum="20"
-                                    Value="{Binding GlueTabDepthMm}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding GlueTabDepthMm, StringFormat={}{0:F1}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="50"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Side wall angle (°)" Style="{StaticResource FieldLabel}"
-                                       ToolTip="Angle of tab side walls vs. edge. 90°=rectangle, 45°=default trapezoid, lower=sharper taper. Applies to Trapezoid shape."/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="1" Maximum="90" TickFrequency="1"
-                                    Value="{Binding GlueTabSideAngleDeg}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding GlueTabSideAngleDeg, StringFormat={}{0:F0}°}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <CheckBox Content="Alternate flap placement"
+                        <!-- Page margin -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Page margin (mm)" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="0" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0" Maximum="40"
+                                Value="{Binding MarginMm, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="0" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding MarginMm, StringFormat={}{0:F0}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Bleed -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Bleed (mm)" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="1" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0" Maximum="10"
+                                Value="{Binding BleedMm, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="1" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding BleedMm, StringFormat={}{0:F1}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- SVG scale -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="SVG scale (px per mm)" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="2" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="1" Maximum="30"
+                                Value="{Binding SvgScaleFactor, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="2" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding SvgScaleFactor, StringFormat={}{0:F0}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Sub-head: Glue Tab Geometry -->
+                        <TextBlock Grid.Row="3" Grid.ColumnSpan="3" Text="Glue Tab Geometry" Style="{StaticResource SubHead}"/>
+
+                        <!-- Tab shape -->
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Tab shape" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
+                                  HorizontalAlignment="Left" Width="160"
+                                  ItemsSource="{Binding TabShapes}"
+                                  SelectedItem="{Binding GlueTabShape}"
+                                  ToolTip="Trapezoid = inset corners; Rectangle = full-width; Triangle = pointed tip"/>
+
+                        <!-- Tab depth -->
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Tab depth (mm)" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="5" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="1" Maximum="20"
+                                Value="{Binding GlueTabDepthMm, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="5" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding GlueTabDepthMm, StringFormat={}{0:F1}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Side wall angle -->
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Side wall angle (°)" Style="{StaticResource FieldLabel}"
+                                   ToolTip="Angle of tab side walls vs. edge. 90°=rectangle, 45°=default trapezoid, lower=sharper taper."/>
+                        <Slider Grid.Row="6" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="1" Maximum="90" TickFrequency="1"
+                                Value="{Binding GlueTabSideAngleDeg, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="6" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding GlueTabSideAngleDeg, StringFormat={}{0:F0}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Alternate flap -->
+                        <CheckBox Grid.Row="7" Grid.ColumnSpan="3" Content="Alternate flap placement"
                                   IsChecked="{Binding AlternateFlaps}"
-                                  ToolTip="Only one face per cut edge pair gets a tab — halves the total number of tabs, making assembly cleaner"/>
-                    </StackPanel>
+                                  ToolTip="Only one face per cut edge pair gets a tab — halves the total number of tabs"/>
+                    </Grid>
                 </GroupBox>
 
-                <GroupBox Header="Content">
-                    <StackPanel>
-                        <CheckBox Content="Include glue tabs"      IsChecked="{Binding IncludeGlueTabs}"/>
-                        <CheckBox Content="Print fold lines"       IsChecked="{Binding PrintFoldLines}"/>
-                        <CheckBox Content="Print cut lines"        IsChecked="{Binding PrintCutLines}"/>
-                        <CheckBox Content="Include page label"     IsChecked="{Binding IncludePageLabel}"/>
-                        <CheckBox Content="Grayscale output"       IsChecked="{Binding GrayscaleOutput}"/>
-                    </StackPanel>
-                </GroupBox>
+                <!-- GroupBox 2: Export Content Options -->
+                <GroupBox Header="Export Content Options">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <!-- sub-head Fold Lines Print -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                            <!-- sub-head Cut Lines Print -->
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
 
-                <GroupBox Header="Fold Lines (Print)">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Fold line color" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                        <CheckBox Grid.Row="0" Grid.ColumnSpan="3" Content="Include glue tabs"    IsChecked="{Binding IncludeGlueTabs}"/>
+                        <CheckBox Grid.Row="1" Grid.ColumnSpan="3" Content="Print fold lines"     IsChecked="{Binding PrintFoldLines}"/>
+                        <CheckBox Grid.Row="2" Grid.ColumnSpan="3" Content="Print cut lines"      IsChecked="{Binding PrintCutLines}"/>
+                        <CheckBox Grid.Row="3" Grid.ColumnSpan="3" Content="Include page label"   IsChecked="{Binding IncludePageLabel}"/>
+                        <CheckBox Grid.Row="4" Grid.ColumnSpan="3" Content="Grayscale output"     IsChecked="{Binding GrayscaleOutput}"/>
+
+                        <!-- Sub-head: Fold Lines (Print) -->
+                        <TextBlock Grid.Row="5" Grid.ColumnSpan="3" Text="Fold Lines (Print)" Style="{StaticResource SubHead}"/>
+
+                        <!-- Print fold color -->
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Fold line color" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
                                        Fill="{Binding PrintFoldColor, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
                                      Text="{Binding PrintFoldColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Fold line width" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0.3" Maximum="4" Value="{Binding PrintFoldWidth}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding PrintFoldWidth, StringFormat={}{0:F1}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Fold line dash" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding DashPatterns}"
-                                      SelectedItem="{Binding PrintFoldDash}"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
+                        </StackPanel>
 
-                <GroupBox Header="Cut Lines (Print)">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="28"/>
-                                <ColumnDefinition Width="110"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Cut line color" Style="{StaticResource FieldLabel}"/>
-                            <Rectangle Grid.Column="1" Width="22" Height="22"
+                        <!-- Print fold width -->
+                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Fold line width" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="7" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0.3" Maximum="4"
+                                Value="{Binding PrintFoldWidth, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="7" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding PrintFoldWidth, StringFormat={}{0:F1}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+
+                        <!-- Print fold dash -->
+                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Fold line dash" Style="{StaticResource FieldLabel}"/>
+                        <ComboBox Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2"
+                                  HorizontalAlignment="Left" Width="160"
+                                  ItemsSource="{Binding DashPatterns}"
+                                  SelectedItem="{Binding PrintFoldDash}"/>
+
+                        <!-- Sub-head: Cut Lines (Print) -->
+                        <TextBlock Grid.Row="9" Grid.ColumnSpan="3" Text="Cut Lines (Print)" Style="{StaticResource SubHead}"/>
+
+                        <!-- Print cut color -->
+                        <TextBlock Grid.Row="10" Grid.Column="0" Text="Cut line color" Style="{StaticResource FieldLabel}"/>
+                        <StackPanel Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="22" Height="22"
                                        Fill="{Binding PrintCutColor, Converter={StaticResource HexBrush}}"
-                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>
-                            <TextBox Grid.Column="2" Style="{StaticResource InputBox}"
+                                       Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,6,0"/>
+                            <TextBox Style="{StaticResource InputBox}" Width="110"
                                      Text="{Binding PrintCutColor, UpdateSourceTrigger=PropertyChanged}" MaxLength="9"/>
-                        </Grid>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="40"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Cut line width" Style="{StaticResource FieldLabel}"/>
-                            <Slider Grid.Column="1" Style="{StaticResource SettingSlider}"
-                                    Minimum="0.3" Maximum="4" Value="{Binding PrintCutWidth}"/>
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding PrintCutWidth, StringFormat={}{0:F1}}"
-                                       Foreground="{DynamicResource SliderValueFg}" VerticalAlignment="Center" Margin="6,0"/>
-                        </Grid>
-                    </StackPanel>
+                        </StackPanel>
+
+                        <!-- Print cut width -->
+                        <TextBlock Grid.Row="11" Grid.Column="0" Text="Cut line width" Style="{StaticResource FieldLabel}"/>
+                        <Slider Grid.Row="11" Grid.Column="1" Style="{StaticResource SettingSlider}"
+                                Minimum="0.3" Maximum="4"
+                                Value="{Binding PrintCutWidth, Mode=TwoWay}"/>
+                        <TextBox Grid.Row="11" Grid.Column="2" Style="{StaticResource NumericBox}"
+                                 Text="{Binding PrintCutWidth, StringFormat={}{0:F1}, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"/>
+                    </Grid>
                 </GroupBox>
             </StackPanel>
 
@@ -830,40 +772,35 @@
                 <TextBlock Text="General" FontSize="18" FontWeight="Bold"
                            Foreground="{DynamicResource PanelHeadFg}" Margin="0,0,0,14"/>
 
-                <!-- Appearance / Theme -->
-                <GroupBox Header="Appearance">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="UI theme" Style="{StaticResource FieldLabel}"
-                                       ToolTip="Light = bright background; Dark = dark background. Applied immediately."/>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding ThemeModes}"
-                                      SelectedItem="{Binding ThemeMode}"
-                                      Width="120"/>
-                        </Grid>
-                    </StackPanel>
-                </GroupBox>
+                <GroupBox Header="App Preferences">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="64"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="32"/>
+                            <RowDefinition Height="32"/>
+                        </Grid.RowDefinitions>
 
-                <GroupBox Header="Display">
-                    <StackPanel>
-                        <Grid Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Display unit" Style="{StaticResource FieldLabel}"
-                                       ToolTip="Unit used when showing dimensions in the UI"/>
-                            <ComboBox Grid.Column="1"
-                                      ItemsSource="{Binding DisplayUnits}"
-                                      SelectedItem="{Binding DisplayUnit}"
-                                      Width="120"
-                                      ToolTip="mm = millimetres, inch = inches — affects all dimension labels in the app"/>
-                        </Grid>
-                    </StackPanel>
+                        <!-- UI theme -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="UI theme" Style="{StaticResource FieldLabel}"
+                                   ToolTip="Light = bright background; Dark = dark background. Applied immediately."/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"
+                                  HorizontalAlignment="Left" Width="120"
+                                  ItemsSource="{Binding ThemeModes}"
+                                  SelectedItem="{Binding ThemeMode}"/>
+
+                        <!-- Display unit -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Display unit" Style="{StaticResource FieldLabel}"
+                                   ToolTip="Unit used when showing dimensions in the UI"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                                  HorizontalAlignment="Left" Width="120"
+                                  ItemsSource="{Binding DisplayUnits}"
+                                  SelectedItem="{Binding DisplayUnit}"
+                                  ToolTip="mm = millimetres, inch = inches — affects all dimension labels in the app"/>
+                    </Grid>
                 </GroupBox>
             </StackPanel>
 
@@ -878,24 +815,32 @@
             <Grid>
                 <Button Content="↺  Reset to defaults"
                         HorizontalAlignment="Left"
-                        Width="160" Height="30"
+                        Width="160" Height="34"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
                         Background="{DynamicResource BtnResetBg}"
                         Foreground="{DynamicResource BtnResetFg}"
                         BorderBrush="{DynamicResource BtnResetBorder}"
                         Click="Reset_Click" Cursor="Hand"/>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="  OK  " Width="80" Height="30"
+                    <Button Content="OK" Width="80" Height="34"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
                             Background="{DynamicResource BtnOkBg}"
                             Foreground="{DynamicResource BtnOkFg}"
                             BorderBrush="{DynamicResource BtnOkBorder}"
                             Margin="0,0,8,0" Click="OK_Click" Cursor="Hand"/>
-                    <Button Content="Apply" Width="80" Height="30"
+                    <Button Content="Apply" Width="80" Height="34"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
                             Background="{DynamicResource BtnApplyBg}"
                             Foreground="{DynamicResource BtnApplyFg}"
                             BorderBrush="{DynamicResource BtnApplyBorder}"
                             Margin="0,0,8,0" Click="Apply_Click" Cursor="Hand"/>
-                    <Button Content="Cancel" Width="80" Height="30"
+                    <Button Content="Cancel" Width="80" Height="34"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center"
                             Background="{DynamicResource BtnCancelBg}"
                             Foreground="{DynamicResource BtnCancelFg}"
                             BorderBrush="{DynamicResource BtnCancelBorder}"

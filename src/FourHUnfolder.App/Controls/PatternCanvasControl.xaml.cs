@@ -251,9 +251,10 @@ public partial class PatternCanvasControl : UserControl
         string pageLabel = (_vm?.PagesWide * _vm?.PagesTall > 1)
             ? $"{paper.Name}  p.{row * (_vm?.PagesWide ?? 1) + col + 1}"
             : $"{paper.Name}  ({_vm?.FormatMm(paper.WidthMm) ?? ""} × {_vm?.FormatMm(paper.HeightMm) ?? ""})";
+        var lblBrush = TryFindResource("Canvas2DPageLabelFg") as Brush ?? Brushes.Gray;
         var lbl = new TextBlock
         {
-            Text = pageLabel, Foreground = Brushes.Gray, FontSize = 10
+            Text = pageLabel, Foreground = lblBrush, FontSize = 11
         };
         Canvas.SetLeft(lbl, ox);
         Canvas.SetTop (lbl, oy - 16);

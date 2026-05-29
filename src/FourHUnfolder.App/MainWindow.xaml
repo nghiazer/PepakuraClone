@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:helix="http://helix-toolkit.org/wpf"
         xmlns:ctrl="clr-namespace:FourHUnfolder.App.Controls"
-        Title="4H-Unfolder v0.0.3.H — Paper Model Unfolder"
+        Title="4H-Unfolder v0.0.4.C — Paper Model Unfolder"
         Icon="Assets/app.ico"
         Width="1400" Height="900"
         WindowStartupLocation="CenterScreen"
@@ -148,7 +148,12 @@
         <StatusBar Grid.Row="1" Background="{DynamicResource StatusBarBg}" Padding="4,0">
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusText}"
-                           Foreground="{DynamicResource TextAccent}" FontFamily="Consolas" FontSize="12"/>
+                           Foreground="{DynamicResource StatusTextFg}" FontFamily="Consolas" FontSize="12"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusZoomText}"
+                           Foreground="{DynamicResource StatusTextFg}" FontFamily="Consolas" FontSize="12"/>
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
                 <TextBlock Text="Right-click edge → Join/Split  ·  LMB=rotate 3D  ·  Scroll=zoom 2D  ·  Shift/Ctrl+click=multi-select"
@@ -159,28 +164,24 @@
         <!-- ═══ Row 2 — main toolbar (icon-only) ════════════════════════════ -->
         <Border Grid.Row="2" Background="{DynamicResource ToolbarBg}" Padding="4,3">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Cluster 1: File / System -->
                 <Button Style="{StaticResource IconBtn}" Content="📂"
                         Command="{Binding LoadMeshCommand}"
                         ToolTip="Load Mesh (.obj, .pdo, .fbx, .stl, …)"/>
-                <Separator/>
-                <Button Style="{StaticResource IconBtn}" Content="⚙"
-                        Command="{Binding UnfoldCommand}" IsEnabled="{Binding CanUnfold}"
-                        ToolTip="Unfold — open setup dialog"/>
-                <Separator/>
-                <Button Style="{StaticResource IconBtn}" Content="💾"
-                        Command="{Binding ExportSvgCommand}" IsEnabled="{Binding CanExport}"
-                        ToolTip="Export SVG pattern"/>
-                <Button Style="{StaticResource IconBtn}" Content="📑"
-                        Command="{Binding ExportPdfCommand}" IsEnabled="{Binding CanExport}"
-                        ToolTip="Export PDF pattern"/>
-                <Separator/>
                 <Button Style="{StaticResource IconBtn}" Content="📁"
                         Command="{Binding SaveProjectCommand}" IsEnabled="{Binding CanExport}"
                         ToolTip="Save project (.pmc)"/>
                 <Button Style="{StaticResource IconBtn}" Content="📂"
                         Command="{Binding LoadProjectCommand}"
                         ToolTip="Load project (.pmc)"/>
+                <Button Style="{StaticResource IconBtn}" Content="⚙"
+                        Command="{Binding OpenSettingsCommand}"
+                        ToolTip="Settings (3D / 2D / Print / General)"/>
                 <Separator/>
+                <!-- Cluster 2: Workflow -->
+                <Button Style="{StaticResource IconBtn}" Content="📐"
+                        Command="{Binding UnfoldCommand}" IsEnabled="{Binding CanUnfold}"
+                        ToolTip="Unfold — open setup dialog"/>
                 <Button Style="{StaticResource IconBtn}" Content="↩"
                         Command="{Binding UndoCommand}" IsEnabled="{Binding CanUndo}"
                         ToolTip="Undo  (Ctrl+Z)"/>
@@ -188,14 +189,19 @@
                         Command="{Binding RedoCommand}" IsEnabled="{Binding CanRedo}"
                         ToolTip="Redo  (Ctrl+Y)"/>
                 <Separator/>
-                <Button Style="{StaticResource IconBtn}" Content="⚙"
-                        Command="{Binding OpenSettingsCommand}"
-                        ToolTip="Settings (3D / 2D / Print / General)"/>
+                <!-- Cluster 3: Export -->
+                <Button Style="{StaticResource IconBtn}" Content="💾"
+                        Command="{Binding ExportSvgCommand}" IsEnabled="{Binding CanExport}"
+                        ToolTip="Export SVG pattern"/>
+                <Button Style="{StaticResource IconBtn}" Content="📑"
+                        Command="{Binding ExportPdfCommand}" IsEnabled="{Binding CanExport}"
+                        ToolTip="Export PDF pattern"/>
+                <Separator/>
+                <!-- Cluster 4: View / Tools -->
                 <Button Style="{StaticResource IconBtn}" Content="🎨"
                         Click="TextureButton_Click"
                         Visibility="{Binding TexturePanelVisible}"
                         ToolTip="Texture manager"/>
-                <Separator/>
                 <Button Style="{StaticResource IconBtn}" Content="🎬"
                         Command="{Binding OpenAssemblyAnimationCommand}"
                         IsEnabled="{Binding CanExport}"

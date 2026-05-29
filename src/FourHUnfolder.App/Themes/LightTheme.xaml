@@ -34,6 +34,7 @@
     <SolidColorBrush x:Key="TextAccent"     Color="#1a4488"/>
     <SolidColorBrush x:Key="TextHint"       Color="#6870a0"/>
     <SolidColorBrush x:Key="PanelHeadFg"    Color="#1a1e2e"/>
+    <SolidColorBrush x:Key="StatusTextFg"   Color="#2a2a44"/>
 
     <!-- ── Borders ───────────────────────────────────────────────── -->
     <SolidColorBrush x:Key="BorderNormal"   Color="#c4c8d8"/>
@@ -43,6 +44,7 @@
     <SolidColorBrush x:Key="Canvas2DBg"           Color="#dce0ea"/>
     <SolidColorBrush x:Key="Canvas2DScrollerBg"   Color="#e8eaf0"/>
     <SolidColorBrush x:Key="Canvas2DZoomBadgeBg"  Color="#99d0d8e8"/>
+    <SolidColorBrush x:Key="Canvas2DPageLabelFg" Color="#4a4a6a"/>
 
     <!-- ── Form controls ─────────────────────────────────────────── -->
     <SolidColorBrush x:Key="GroupBoxFg"     Color="#2255aa"/>

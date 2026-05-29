@@ -82,6 +82,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty] private Model3DGroup? _selectionOverlayModel;  // 3D highlight
     [ObservableProperty] private Model3DGroup? _edgeHighlightModel;     // Feature B: 3D edge hover
     [ObservableProperty] private string        _statusText   = "Ready — load a mesh to begin.";
+    public string StatusZoomText => $"Zoom  {Math.Round(PixelsPerMm / _settingsService.Current.View2D.DefaultPixelsPerMm * 100):F0}%";
     [ObservableProperty] [NotifyCanExecuteChangedFor(nameof(UnfoldCommand))]  private bool _canUnfold;
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ExportSvgCommand))]
@@ -163,6 +164,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     /// Visual gap between adjacent pages on the canvas (mm).
     public const double PageSepMm = 20.0;
+
+    partial void OnPixelsPerMmChanged(double value) => OnPropertyChanged(nameof(StatusZoomText));
 
     public ObservableCollection<PieceViewModel> Pieces { get; } = new();
 
@@ -301,6 +304,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Show3DViewCube));
         OnPropertyChanged(nameof(View2DSettings));
         OnPropertyChanged(nameof(UnitLabel));
+        OnPropertyChanged(nameof(StatusZoomText));
         OnPropertyChanged(nameof(CameraFOV));
         OnPropertyChanged(nameof(CameraNearPlane));
         OnPropertyChanged(nameof(CameraFarPlane));

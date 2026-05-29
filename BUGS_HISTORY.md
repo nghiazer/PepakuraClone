@@ -4,6 +4,45 @@
 
 ---
 
+## Session 41 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Branch** | `feat/toolbar-ux` — branched from `fix/perf-overlap-detector` @ v0.0.3.H |
+| **Toolbar regrouping** | `MainWindow.xaml`: Reordered 12 toolbar buttons from 6 scattered groups → 4 semantic clusters: ① File/System (Load Mesh · Save · Load Project · Settings) ② Workflow (Unfold · Undo · Redo) ③ Export (SVG · PDF) ④ View/Tools (Texture · Assembly). Settings moved from far-right into File cluster; Undo/Redo joined Unfold. |
+| **Page label contrast** | `PatternCanvasControl.xaml.cs` `DrawPageAt()`: replaced hardcoded `Brushes.Gray` with `TryFindResource("Canvas2DPageLabelFg")`, font 10→11pt. New theme resource: Dark `#c0c0e0` (contrast 4.6:1 ✓), Light `#4a4a6a` (contrast 5.8:1 ✓) — both exceed WCAG AA 4.5:1. |
+| **Status bar restructure** | `MainWindow.xaml`: Status bar now has two left segments `[StatusText] ∣ [Zoom  100%]`. New resource `StatusTextFg` replaces neon blue `TextAccent` (Dark: `#d8d8e8` off-white, Light: `#2a2a44` dark navy). |
+| **StatusZoomText** | `MainViewModel.cs`: Added `StatusZoomText` computed property (% of `DefaultPixelsPerMm`), `OnPixelsPerMmChanged` partial to notify on scroll-zoom, and `OnSettingsChanged` notifies when default zoom changes in Settings. |
+| **Bug fix (review)** | `StatusZoomText` baseline fixed from hardcoded `3.0` → `_settingsService.Current.View2D.DefaultPixelsPerMm`, preventing wrong % when user changes Default zoom in Settings. |
+| **Version** | `0.0.3.8 → 0.0.4.0` (v0.0.3.H → v0.0.4.A) |
+| **Tests** | 56 / 56 pass |
+
+---
+
+## Session 40 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Branch** | `fix/perf-overlap-detector` continuing @ v0.0.3.G → v0.0.3.H |
+| **Remove 2D canvas inner bounder** | `DrawPaper()` (`PatternCanvasControl.xaml.cs`): changed `RootCanvas.Background = HexBrush(canvasBg)` → `Scroller.Background = HexBrush(canvasBg)` + `RootCanvas.Background = Brushes.Transparent`. Previously `RootCanvas` had a fixed Width/Height forming a visible rectangle against `Canvas2DScrollerBg`, creating the "inner bounder" look. Now the whole 2D view is one uniform color. |
+| **Theme sync** | `DarkTheme.xaml`: `Canvas2DScrollerBg` `#2a2a4a` → `#3a3a5a`; `LightTheme.xaml`: `Canvas2DScrollerBg` `#cdd2de` → `#e8eaf0` — theme fallback before code-behind runs is now seamless with `CanvasBackground` defaults. |
+| **Settings label** | `SettingsDialog.xaml`: "Canvas background" → "2D view background" to reflect new scope. |
+| **Version** | `0.0.3.7 → 0.0.3.8` (v0.0.3.G → v0.0.3.H) |
+| **Tests** | 56 / 56 pass |
+
+---
+
+## Session 39 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Branch** | `fix/perf-overlap-detector` — branched from `fix/theme-system` @ v0.0.3.F |
+| **Spatial grid for OverlapDetector** | Replaced O(n²) nested loop with uniform bucket-partition broad phase. Each face is inserted into all grid cells its AABB covers (typically 1–4 cells); only pairs that share a cell are tested. Cell size = `max(2 × avgAABBSide, maxExtent / 256)`. Candidate pairs deduplicated with `HashSet<long>`. AABB pre-check + SAT follow, identical to before. |
+| **Version** | `0.0.3.6 → 0.0.3.7` (v0.0.3.F → v0.0.3.G) |
+| **Tests** | 56 / 56 pass |
+
+---
+
 ## Session 38 — Changes
 
 | Item | Detail |
