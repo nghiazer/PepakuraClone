@@ -3,14 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:helix="http://helix-toolkit.org/wpf"
         Title="Model Orientation"
-        Width="560" Height="480"
-        MinWidth="480" MinHeight="380"
+        Width="600" Height="500"
+        MinWidth="520" MinHeight="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="CanMinimize"
         Background="{DynamicResource DialogBg}" Foreground="{DynamicResource TextPrimary}">
 
     <Window.Resources>
-        <Style x:Key="Label" TargetType="TextBlock">
+        <Style x:Key="FieldLabelLocal" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource FieldLabelFg}"/>
             <Setter Property="FontSize"   Value="12"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -33,9 +33,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>  <!-- title -->
             <RowDefinition Height="*"/>     <!-- viewer + controls -->
-            <RowDefinition Height="Auto"/>  <!-- flip uv -->
-            <RowDefinition Height="Auto"/>  <!-- don't ask again -->
-            <RowDefinition Height="Auto"/>  <!-- buttons -->
+            <RowDefinition Height="Auto"/>  <!-- footer -->
         </Grid.RowDefinitions>
 
         <!-- ── Title ───────────────────────────────── -->
@@ -43,19 +41,17 @@
             <TextBlock Text="Set Model Orientation"
                        FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             <TextBlock Text="The viewport shows your model with the selected orientation applied (live preview). Axis lines: Red=+X, Green=+Y, Blue=+Z."
-                       Foreground="{DynamicResource TextMuted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                       Foreground="{DynamicResource TextSecondary}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
         </StackPanel>
 
         <!-- ── Mesh viewer + axis selectors ─────────── -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>       <!-- mesh preview -->
-                <ColumnDefinition Width="210"/>     <!-- controls -->
+                <ColumnDefinition Width="3*"/>   <!-- mesh preview ~60% -->
+                <ColumnDefinition Width="2*"/>   <!-- controls ~40% -->
             </Grid.ColumnDefinitions>
 
-            <!-- Mesh preview viewport.
-                 Axis lines (X=Red, Y=Green, Z=Blue) and the actual mesh
-                 are added in code-behind. The mesh rotates live as you change axes. -->
+            <!-- Mesh preview viewport -->
             <Border Grid.Column="0" BorderBrush="{DynamicResource BorderNormal}" BorderThickness="1" CornerRadius="4"
                     Margin="0,0,12,0">
                 <Grid>
@@ -73,7 +69,7 @@
                         <!-- mesh + axis lines added programmatically in code-behind -->
                     </helix:HelixViewport3D>
 
-                    <!-- TD-27-2: 2D axis label overlay — positions updated in code-behind -->
+                    <!-- 2D axis label overlay — positions updated in code-behind -->
                     <Canvas x:Name="AxisLabelCanvas" IsHitTestVisible="False">
                         <TextBlock x:Name="LabelX" Text="+X"
                                    Foreground="#ff5555" FontSize="11" FontWeight="Bold"
@@ -93,23 +89,26 @@
             </Border>
 
             <!-- ── Axis selector controls ────────────────── -->
-            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock Text="Axis Reference" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"
-                           FontSize="12" Margin="0,0,0,8"/>
+            <StackPanel Grid.Column="1" VerticalAlignment="Top">
 
-                <!-- Axis color legend matching the 3D lines -->
-                <StackPanel Margin="0,0,0,16">
+                <!-- Axis Reference heading -->
+                <TextBlock Text="AXIS REFERENCE" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}"
+                           FontSize="10" Margin="0,0,0,8"
+                           TextWrapping="Wrap" Height="Auto"/>
+
+                <!-- Axis color legend -->
+                <StackPanel Margin="0,0,0,12">
                     <StackPanel Orientation="Horizontal" Margin="0,3">
                         <Rectangle Width="14" Height="4" Fill="#ff4444" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="+X axis (Red)" Style="{StaticResource Label}" Margin="0"/>
+                        <TextBlock Text="+X axis (Red)" Style="{StaticResource FieldLabelLocal}" Margin="0"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,3">
                         <Rectangle Width="14" Height="4" Fill="#44cc44" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="+Y axis (Green)" Style="{StaticResource Label}" Margin="0"/>
+                        <TextBlock Text="+Y axis (Green)" Style="{StaticResource FieldLabelLocal}" Margin="0"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,3">
                         <Rectangle Width="14" Height="4" Fill="#4488ff" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="+Z axis (Blue)" Style="{StaticResource Label}" Margin="0"/>
+                        <TextBlock Text="+Z axis (Blue)" Style="{StaticResource FieldLabelLocal}" Margin="0"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -117,7 +116,7 @@
 
                 <!-- Up axis -->
                 <TextBlock Text="Up axis (maps to world +Y)"
-                           Style="{StaticResource Label}" Margin="0,0,0,4"
+                           Style="{StaticResource FieldLabelLocal}" Margin="0,0,0,4"
                            TextWrapping="Wrap"/>
                 <ComboBox ItemsSource="{Binding AxisOptions}"
                           SelectedItem="{Binding UpAxis}"
@@ -126,16 +125,17 @@
 
                 <!-- Front axis -->
                 <TextBlock Text="Front axis (maps to world +Z)"
-                           Style="{StaticResource Label}" Margin="0,0,0,4"
+                           Style="{StaticResource FieldLabelLocal}" Margin="0,0,0,4"
                            TextWrapping="Wrap"/>
                 <ComboBox ItemsSource="{Binding AxisOptions}"
                           SelectedItem="{Binding FrontAxis}"
                           ToolTip="Which axis of your model should face forward?"
-                          Margin="0,0,0,8"/>
+                          Margin="0,0,0,4"/>
 
-                <!-- TD-27-3: parallel-axes warning -->
+                <!-- Parallel-axes warning -->
                 <TextBlock Text="⚠ Up and Front must be different axes!"
-                           Foreground="{DynamicResource WarningTextFg}" FontSize="10" TextWrapping="Wrap">
+                           Foreground="{DynamicResource WarningTextFg}" FontSize="10" TextWrapping="Wrap"
+                           Margin="0,0,0,12">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -147,57 +147,65 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
+
+                <Separator Background="{DynamicResource BorderNormal}" Margin="0,0,0,12"/>
+
+                <!-- Flip UV — moved here from separate row, no background box -->
+                <CheckBox Content="Flip UV (mirror texture vertically)"
+                          IsChecked="{Binding FlipUV}"
+                          ToolTip="Flips V coordinate: fixes textures that appear upside-down."
+                          Margin="0,0,0,4"/>
+                <TextBlock Text="Tip: if the texture looks wrong after loading, try enabling Flip UV."
+                           Foreground="{DynamicResource TextSecondary}" FontSize="10" Margin="20,0,0,0"
+                           TextWrapping="Wrap"/>
+
             </StackPanel>
         </Grid>
 
-        <!-- ── Flip UV ──────────────────────────────── -->
-        <Border Grid.Row="2" Background="{DynamicResource DialogNavBg}" CornerRadius="4" Padding="10,8" Margin="0,12,0,0">
-            <StackPanel>
-                <CheckBox Content="Flip UV (mirror texture vertically)"
-                          IsChecked="{Binding FlipUV}"
-                          ToolTip="Flips V coordinate: fixes textures that appear upside-down."/>
-                <TextBlock Text="Tip: if the texture looks wrong after loading, try enabling Flip UV."
-                           Foreground="{DynamicResource TextMuted}" FontSize="10" Margin="20,3,0,0"/>
+        <!-- ── Footer: Don't-ask-again left / buttons right ── -->
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <CheckBox x:Name="ChkDontAskAgain"
+                      Grid.Column="0"
+                      Content="Don't ask again (always load with current settings)"
+                      VerticalAlignment="Center"
+                      IsChecked="False"
+                      ToolTip="Suppresses this dialog on future loads. Reset via Settings → General."/>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <!-- Import = primary action, accent style -->
+                <Button Content="Import" Width="80" Height="34"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Background="{DynamicResource BtnOkBg}"
+                        Foreground="{DynamicResource BtnOkFg}"
+                        BorderBrush="{DynamicResource BtnOkBorder}"
+                        Cursor="Hand" Margin="0,0,8,0" Click="OK_Click" IsDefault="True">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding AxesAreParallel}" Value="True">
+                                    <Setter Property="IsEnabled" Value="False"/>
+                                    <Setter Property="Opacity"   Value="0.35"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <!-- Cancel = neutral secondary -->
+                <Button Content="Cancel" Width="80" Height="34"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Background="{DynamicResource CtrlBtnBg}"
+                        Foreground="{DynamicResource TextPrimary}"
+                        BorderBrush="{DynamicResource BorderNormal}"
+                        Cursor="Hand" Click="Cancel_Click" IsCancel="True"
+                        ToolTip="Cancel and go back without applying orientation"/>
             </StackPanel>
-        </Border>
-
-        <!-- ── Don't ask again ─────────────────────── -->
-        <!-- TD-25-1: persisted to AppSettings.General.SkipModelOrientationDialog -->
-        <CheckBox x:Name="ChkDontAskAgain"
-                  Grid.Row="3"
-                  Content="Don't ask again (always load with current settings)"
-                  Margin="0,10,0,0"
-                  IsChecked="False"
-                  ToolTip="Suppresses this dialog on future loads. Reset via Settings → General."/>
-
-        <!-- ── Buttons ──────────────────────────────── -->
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right"
-                    Margin="0,12,0,0">
-            <!-- TD-27-3: disable OK when axes are parallel -->
-            <Button Content="OK" Width="80" Height="30"
-                    HorizontalContentAlignment="Center"
-                    Background="{DynamicResource BtnOkBg}"
-                    Foreground="{DynamicResource BtnOkFg}"
-                    BorderBrush="{DynamicResource BtnOkBorder}"
-                    Cursor="Hand" Margin="0,0,8,0" Click="OK_Click" IsDefault="True">
-                <Button.Style>
-                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding AxesAreParallel}" Value="True">
-                                <Setter Property="IsEnabled" Value="False"/>
-                                <Setter Property="Opacity"   Value="0.35"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
-            <Button Content="Skip" Width="80" Height="30"
-                    HorizontalContentAlignment="Center"
-                    Background="{DynamicResource CtrlBtnBg}"
-                    Foreground="{DynamicResource TextMuted}"
-                    BorderBrush="{DynamicResource BorderNormal}"
-                    Cursor="Hand" Click="Skip_Click" IsCancel="True"
-                    ToolTip="Skip orientation adjustment and load mesh as-is"/>
-        </StackPanel>
+        </Grid>
     </Grid>
 </Window>
