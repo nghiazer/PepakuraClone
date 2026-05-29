@@ -8,7 +8,7 @@
 A Pepakura-style paper model unfolder built with **WPF / .NET 8**.  
 Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, and export to SVG or PDF.
 
-> Current version: **v0.0.4.B** (win-x64 self-contained EXE) — Settings dialog UX overhaul
+> Current version: **v0.0.4.C** (win-x64 self-contained EXE) — Dialog UX overhaul × 3
 
 ---
 
@@ -16,8 +16,8 @@ Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, a
 
 | Package | Link |
 |---------|------|
-| **Installer** (recommended) | [4H-Unfolder-v0.0.4.B-setup.exe](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.B/4H-Unfolder-v0.0.4.B-setup.exe) |
-| **Portable ZIP** | [4H-Unfolder-v0.0.4.B-portable.zip](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.B/4H-Unfolder-v0.0.4.B-portable.zip) |
+| **Installer** (recommended) | [4H-Unfolder-v0.0.4.C-setup.exe](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.C/4H-Unfolder-v0.0.4.C-setup.exe) |
+| **Portable ZIP** | [4H-Unfolder-v0.0.4.C-portable.zip](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.C/4H-Unfolder-v0.0.4.C-portable.zip) |
 
 > **No runtime required** — fully self-contained win-x64 binary.  
 > Requires Windows 10 / 11 (x64).
@@ -38,7 +38,7 @@ Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, a
 ```bash
 cd D:\CODING\UNFOLD
 dotnet restore
-dotnet build          # 0 errors, 4 NuGet warnings only
+dotnet build          # 0 errors, 5 NuGet warnings only
 dotnet run --project src/FourHUnfolder.App
 ```
 
@@ -115,6 +115,9 @@ Edge visual key:
 - Phase 1: true paper-fold — faces rotate around shared fold edges via accumulated Matrix4x4
 - Phase 2: fly-in — folded shape translates to its final 3-D position
 - Per-material texture on each piece; amber highlight on current step
+- **Step timeline slider** — drag to jump to any step instantly (two-way binding)
+- Controls toolbar: step description left · **⏮ ◀ ▶▶ ▶ ⏭** centred · colour legend right
+- Clean 3D viewport — legend (Current / Assembled / Upcoming) moved to toolbar, no overlay
 - Play / Pause auto-animation; step controls ⏮ ◀ ▶ ⏭
 
 ### 3-D face selection
@@ -127,6 +130,14 @@ Edge visual key:
 ### Settings dialog (⚙)
 Four panels — all persisted to `%AppData%\4H-Unfolder\settings.json`.  
 All numeric sliders have a companion TextBox for direct number entry (two-way binding). Switching panels resets scroll to top.
+
+### Model Orientation dialog
+Shown on every mesh load. Two-column layout: 3D preview (60%) · controls (40%).  
+Up axis + Front axis selectors with live mesh preview. Flip UV checkbox. Footer: **Import** (primary) · **Cancel** + "Don't ask again" checkbox.
+
+### Unfold Setup dialog (📐)
+Two-column grid layout — top-down logical flow: **Preset** → **Orientation** → **Custom Size**.  
+Custom Width/Height fields are dimmed (Opacity 0.45) and locked when a fixed preset is selected; enabled only when "Custom…" is chosen.
 
 | Panel | GroupBoxes | Notable options |
 |-------|-----------|----------------|

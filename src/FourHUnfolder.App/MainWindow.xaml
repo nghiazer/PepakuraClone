@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:helix="http://helix-toolkit.org/wpf"
         xmlns:ctrl="clr-namespace:FourHUnfolder.App.Controls"
-        Title="4H-Unfolder v0.0.4.B — Paper Model Unfolder"
+        Title="4H-Unfolder v0.0.4.C — Paper Model Unfolder"
         Icon="Assets/app.ico"
         Width="1400" Height="900"
         WindowStartupLocation="CenterScreen"
@@ -179,7 +179,7 @@
                         ToolTip="Settings (3D / 2D / Print / General)"/>
                 <Separator/>
                 <!-- Cluster 2: Workflow -->
-                <Button Style="{StaticResource IconBtn}" Content="⚙"
+                <Button Style="{StaticResource IconBtn}" Content="📐"
                         Command="{Binding UnfoldCommand}" IsEnabled="{Binding CanUnfold}"
                         ToolTip="Unfold — open setup dialog"/>
                 <Button Style="{StaticResource IconBtn}" Content="↩"

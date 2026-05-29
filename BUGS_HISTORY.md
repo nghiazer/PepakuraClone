@@ -4,6 +4,21 @@
 
 ---
 
+## Session 41 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Branch** | `feat/toolbar-ux` — branched from `fix/perf-overlap-detector` @ v0.0.3.H |
+| **Toolbar regrouping** | `MainWindow.xaml`: Reordered 12 toolbar buttons from 6 scattered groups → 4 semantic clusters: ① File/System (Load Mesh · Save · Load Project · Settings) ② Workflow (Unfold · Undo · Redo) ③ Export (SVG · PDF) ④ View/Tools (Texture · Assembly). Settings moved from far-right into File cluster; Undo/Redo joined Unfold. |
+| **Page label contrast** | `PatternCanvasControl.xaml.cs` `DrawPageAt()`: replaced hardcoded `Brushes.Gray` with `TryFindResource("Canvas2DPageLabelFg")`, font 10→11pt. New theme resource: Dark `#c0c0e0` (contrast 4.6:1 ✓), Light `#4a4a6a` (contrast 5.8:1 ✓) — both exceed WCAG AA 4.5:1. |
+| **Status bar restructure** | `MainWindow.xaml`: Status bar now has two left segments `[StatusText] ∣ [Zoom  100%]`. New resource `StatusTextFg` replaces neon blue `TextAccent` (Dark: `#d8d8e8` off-white, Light: `#2a2a44` dark navy). |
+| **StatusZoomText** | `MainViewModel.cs`: Added `StatusZoomText` computed property (% of `DefaultPixelsPerMm`), `OnPixelsPerMmChanged` partial to notify on scroll-zoom, and `OnSettingsChanged` notifies when default zoom changes in Settings. |
+| **Bug fix (review)** | `StatusZoomText` baseline fixed from hardcoded `3.0` → `_settingsService.Current.View2D.DefaultPixelsPerMm`, preventing wrong % when user changes Default zoom in Settings. |
+| **Version** | `0.0.3.8 → 0.0.4.0` (v0.0.3.H → v0.0.4.A) |
+| **Tests** | 56 / 56 pass |
+
+---
+
 ## Session 40 — Changes
 
 | Item | Detail |

@@ -99,6 +99,7 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
     private DateTime _lastTick;
     private double   _animT          = 1.0;
     private double   _pauseRemaining = 0;
+    private bool     _suppressStepRefresh = false;  // guard: timer sets step internally
 
     // ── observable properties ─────────────────────────────────────────────────
     [ObservableProperty]
@@ -115,10 +116,19 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(PlayPauseLabel))]
     private bool _isPlaying = false;
 
+    // Called by source-generated setter when CurrentStep changes (e.g. Slider drag)
+    partial void OnCurrentStepChanged(int value)
+    {
+        if (_suppressStepRefresh) return;
+        _animT = 1.0;
+        RefreshModel();
+    }
+
     [ObservableProperty] private Model3DGroup? _assemblyModel;
 
     // ── computed properties ───────────────────────────────────────────────────
     public int    StepCount    => _stepInfos.Length;
+    public int    StepMaxIndex => Math.Max(_stepInfos.Length - 1, 0);
     public double StepProgress => StepCount > 1 ? (double)CurrentStep / (StepCount - 1) * 100.0 : 100.0;
     public string PlayPauseLabel => IsPlaying ? "⏸ Pause" : "▶ Play";
 
@@ -249,8 +259,10 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
 
             if (CurrentStep < _stepInfos.Length - 1)
             {
-                _pauseRemaining = PauseDurationMs;
+                _pauseRemaining      = PauseDurationMs;
+                _suppressStepRefresh = true;
                 CurrentStep++;
+                _suppressStepRefresh = false;
                 _animT = 0.0;
             }
             else

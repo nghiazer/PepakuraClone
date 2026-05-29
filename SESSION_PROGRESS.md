@@ -1,7 +1,7 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-29 (session 42 — Settings dialog UX overhaul; branch `feat/toolbar-ux`)
-> **Branch:** `feat/toolbar-ux`  (base: `fix/perf-overlap-detector` @ v0.0.3.H → current: v0.0.4.B)
+> **Last updated:** 2026-05-29 (session 43 — Dialog UX refactor × 3: ModelOrientation + UnfoldSetup + AssemblyAnimation; branch `feat/toolbar-ux`)
+> **Branch:** `feat/toolbar-ux`  (base: `fix/perf-overlap-detector` @ v0.0.3.H → current: v0.0.4.C)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
 > **History archive:** see [`BUGS_HISTORY.md`](BUGS_HISTORY.md) for all prior bug/tech-debt records
@@ -93,6 +93,25 @@ No circular dependencies. Domain has zero external dependencies.
 | Published `4H-Unfolder.exe` **v0.0.3.H** (win-x64, self-contained) | ✅ Session 40 |
 | Published `4H-Unfolder.exe` **v0.0.4.A** (win-x64, self-contained) | ✅ Session 41 |
 | Published `4H-Unfolder.exe` **v0.0.4.B** (win-x64, self-contained) | ✅ Session 42 |
+| Published `4H-Unfolder.exe` **v0.0.4.C** (win-x64, self-contained) | ✅ Session 43 |
+
+---
+
+## Session 43 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Branch** | `feat/toolbar-ux` continuing @ v0.0.4.B → v0.0.4.C |
+| **Toolbar icon fix** | `MainWindow.xaml`: Unfold button icon `⚙` → `📐` — eliminates confusion with Settings `⚙` icon |
+| **ModelOrientationDialog refactor** | (session 43, committed `aed9582`) Layout overhaul: `Skip` → `Cancel` (neutral style); `OK` → `Import` (accent, Height 30→34); `AXIS REFERENCE` TextWrapping=Wrap + Height=Auto; FlipUV checkbox+tip moved into right column under Front axis (no gray box); `Don't ask again` to footer left; description + tip `TextMuted` → `TextSecondary` |
+| **UnfoldSetupDialog refactor** | Unified 2-col grid (130px label / `*` control): row order Preset → Orientation → Custom Size (logical top-down flow). `CustomInput` style adds `Opacity=0.45` when `IsEnabled=False` — locked fields visually dimmed. Footer buttons Height 30→34 + `VerticalContentAlignment=Center`. |
+| **AssemblyAnimationWindow refactor** | Legend overlay removed from viewport (100% clean 3D space). New Row 2: Step Timeline Slider (Minimum=0, Maximum=`StepMaxIndex`, TwoWay bind `CurrentStep`, IsSnapToTickEnabled). Controls toolbar → 3-column Grid: step description left · 5 nav buttons centre · 3-item legend right. Step description moved from separate Row 1 Border into toolbar left col. |
+| **AssemblyViewModel: StepMaxIndex** | New computed property `StepMaxIndex = Math.Max(Length-1, 0)` for Slider Maximum binding |
+| **AssemblyViewModel: OnCurrentStepChanged** | New `partial void OnCurrentStepChanged(int)` — Slider drag triggers `_animT=1.0` + `RefreshModel()`. Guard `_suppressStepRefresh` prevents double-render when timer internally increments `CurrentStep`. |
+| **Bug fix (review)** | Timer tick sets `CurrentStep++` wrapped with `_suppressStepRefresh=true/false` — prevents `OnCurrentStepChanged` double-calling `RefreshModel()` during auto-play |
+| **Publish cleanup** | `publish/v0.0.2.A–H` → `publish/v0.0.2.zip` (530 MB); `publish/v0.0.3.A–H` → `publish/v0.0.3.zip` (529 MB); 16 folders deleted |
+| **Version** | `0.0.4.1 → 0.0.4.2` (v0.0.4.B → v0.0.4.C) |
+| **Tests** | 56 / 56 pass |
 
 ---
 
@@ -108,21 +127,6 @@ No circular dependencies. Domain has zero external dependencies.
 | **Scroll reset on tab switch** | `SettingsDialog.xaml.cs` `NavList_SelectionChanged`: added `ContentScroller.ScrollToVerticalOffset(0)`. ScrollViewer named `x:Name="ContentScroller"`. |
 | **Bug fix (review)** | `ContentScroller.ScrollToTop()` không phải WPF API → fixed to `ScrollToVerticalOffset(0)`. |
 | **Version** | `0.0.4.0 → 0.0.4.1` (v0.0.4.A → v0.0.4.B) |
-| **Tests** | 56 / 56 pass |
-
----
-
-## Session 41 — Changes
-
-| Item | Detail |
-|------|--------|
-| **Branch** | `feat/toolbar-ux` — branched from `fix/perf-overlap-detector` @ v0.0.3.H |
-| **Toolbar regrouping** | `MainWindow.xaml`: Reordered 12 toolbar buttons from 6 scattered groups → 4 semantic clusters: ① File/System (Load Mesh · Save · Load Project · Settings) ② Workflow (Unfold · Undo · Redo) ③ Export (SVG · PDF) ④ View/Tools (Texture · Assembly). Settings moved from far-right into File cluster; Undo/Redo joined Unfold. |
-| **Page label contrast** | `PatternCanvasControl.xaml.cs` `DrawPageAt()`: replaced hardcoded `Brushes.Gray` with `TryFindResource("Canvas2DPageLabelFg")`, font 10→11pt. New theme resource: Dark `#c0c0e0` (contrast 4.6:1 ✓), Light `#4a4a6a` (contrast 5.8:1 ✓) — both exceed WCAG AA 4.5:1. |
-| **Status bar restructure** | `MainWindow.xaml`: Status bar now has two left segments `[StatusText] ∣ [Zoom  100%]`. New resource `StatusTextFg` replaces neon blue `TextAccent` (Dark: `#d8d8e8` off-white, Light: `#2a2a44` dark navy). |
-| **StatusZoomText** | `MainViewModel.cs`: Added `StatusZoomText` computed property (% of `DefaultPixelsPerMm`), `OnPixelsPerMmChanged` partial to notify on scroll-zoom, and `OnSettingsChanged` notifies when default zoom changes in Settings. |
-| **Bug fix (review)** | `StatusZoomText` baseline fixed from hardcoded `3.0` → `_settingsService.Current.View2D.DefaultPixelsPerMm`, preventing wrong % when user changes Default zoom in Settings. |
-| **Version** | `0.0.3.8 → 0.0.4.0` (v0.0.3.H → v0.0.4.A) |
 | **Tests** | 56 / 56 pass |
 
 ---
@@ -227,6 +231,6 @@ App/Assets/             app.ico (6 sizes) logo.png
 
 ## Recommended Next Steps
 
-1. **Merge `feat/toolbar-ux` → `main`** — branch is stable at v0.0.4.B; toolbar UX + settings dialog overhaul applied
+1. **Merge `feat/toolbar-ux` → `main`** — branch is stable at v0.0.4.C; all dialog UX overhauls complete
 2. **Multi-page auto-layout** — allow pieces to flow across multiple pages automatically during auto-arrange
-3. **Tiếp tục UX polish** — Vấn đề 1 (3D viewport controls)
+3. **UX polish** — 3D viewport navigation controls (trackpad pinch-zoom, keyboard shortcuts)
