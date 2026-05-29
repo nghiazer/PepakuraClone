@@ -41,7 +41,7 @@
 
     <!-- ── 2D canvas ─────────────────────────────────────────────── -->
     <SolidColorBrush x:Key="Canvas2DBg"           Color="#dce0ea"/>
-    <SolidColorBrush x:Key="Canvas2DScrollerBg"   Color="#cdd2de"/>
+    <SolidColorBrush x:Key="Canvas2DScrollerBg"   Color="#e8eaf0"/>
     <SolidColorBrush x:Key="Canvas2DZoomBadgeBg"  Color="#99d0d8e8"/>
 
     <!-- ── Form controls ─────────────────────────────────────────── -->

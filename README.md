@@ -8,11 +8,23 @@
 A Pepakura-style paper model unfolder built with **WPF / .NET 8**.  
 Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, and export to SVG or PDF.
 
-> Current version: **v0.0.3.E** (win-x64 self-contained EXE) — Dark/Light theme fix + UI/UX polish
+> Current version: **v0.0.3.H** (win-x64 self-contained EXE) — Performance + UX polish
 
 ---
 
-## Prerequisites
+## Download
+
+| Package | Link |
+|---------|------|
+| **Installer** (recommended) | [4H-Unfolder-v0.0.3.H-setup.exe](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.3.H/4H-Unfolder-v0.0.3.H-setup.exe) |
+| **Portable ZIP** | [4H-Unfolder-v0.0.3.H-portable.zip](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.3.H/4H-Unfolder-v0.0.3.H-portable.zip) |
+
+> **No runtime required** — fully self-contained win-x64 binary.  
+> Requires Windows 10 / 11 (x64).
+
+---
+
+## Prerequisites (build from source)
 
 | Requirement | Download |
 |-------------|---------|
@@ -148,7 +160,7 @@ Four panels — all persisted to `%AppData%\4H-Unfolder\settings.json`:
 │   │
 │   ├── FourHUnfolder.Geometry        # Algorithms (→ Domain)
 │   │   └── Algorithms/    DualGraphBuilder, KruskalMstBuilder, EdgeMarker,
-│   │                       UnfoldEngine, OverlapDetector (AABB + SAT),
+│   │                       UnfoldEngine, OverlapDetector (spatial grid + AABB + SAT),
 │   │                       GlueTabGenerator, PieceComputer,
 │   │                       AssemblyPlanner, PieceFoldTree
 │   │
@@ -174,10 +186,9 @@ Four panels — all persisted to `%AppData%\4H-Unfolder\settings.json`:
 │       └── MainWindow.xaml
 │
 └── tests/
-    └── FourHUnfolder.Tests   # xUnit + FluentAssertions — 41 tests
-        MstAlgorithmTests (6), UnfoldEngineTests (9),
-        GeometryAlgorithmTests (13), SvgExporterTests (5),
-        PdoMeshLoaderTests (7) + AffineTransform (1)
+    └── FourHUnfolder.Tests   # xUnit + FluentAssertions — 56 tests
+        MstAlgorithmTests, UnfoldEngineTests,
+        GeometryAlgorithmTests, SvgExporterTests, PdoMeshLoaderTests
 ```
 
 ### Dependency graph
@@ -203,7 +214,7 @@ Domain ──→ Geometry ──→ Application ──→ Infrastructure ──�
 | 3 | `KruskalMstBuilder` | MST via Kruskal + path-compressed Union-Find |
 | 4 | `EdgeMarker` | MST → Fold; non-MST interior → Cut; boundary → Boundary |
 | 5 | `UnfoldEngine` | BFS flattening; circle-circle apex reconstruction |
-| 6 | `OverlapDetector` | AABB pre-check + SAT |
+| 6 | `OverlapDetector` | Spatial grid broad-phase + AABB pre-check + SAT (O(n·k)) |
 | 7 | `GlueTabGenerator` | Configurable tabs on all cut edges |
 | 8 | `PieceComputer` | Union-Find on fold graph → connected components |
 | 9 | `SvgExporter` / `PdfExporter` | Edge-dedup; UV-mapped texture; multi-page PDF |
@@ -260,7 +271,6 @@ Expected after **Unfold** (A4, 200 mm longest axis):
 
 ## Known limitations
 
-- Overlap detection is O(n²) after AABB rejection — slow on meshes > ~2 000 faces
 - Undo/redo covers edge edits and piece transforms; complex multi-step sequences may have minor position drift
 - SVG texture requires UV-mapped mesh; plain geometry without UV coordinates exports without texture
 

@@ -6,7 +6,7 @@
 dotnet restore
 dotnet build                          # 0 errors, 4 NuGet NU1603 warnings only
 dotnet run --project src/FourHUnfolder.App
-dotnet test tests/FourHUnfolder.Tests # 41/41 pass
+dotnet test tests/FourHUnfolder.Tests # 56/56 pass
 ```
 
 ## Architecture

@@ -390,7 +390,7 @@
                                 <ColumnDefinition Width="28"/>
                                 <ColumnDefinition Width="110"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Canvas background" Style="{StaticResource FieldLabel}"/>
+                            <TextBlock Text="2D view background" Style="{StaticResource FieldLabel}"/>
                             <Rectangle Grid.Column="1" Width="22" Height="22"
                                        Fill="{Binding CanvasBackground, Converter={StaticResource HexBrush}}"
                                        Stroke="{DynamicResource ColorSwatchBorderBrush}" StrokeThickness="1" Margin="0,0,4,0"/>

@@ -208,7 +208,8 @@ public partial class PatternCanvasControl : UserControl
     private void DrawPaper(PaperSizeModel paper)
     {
         var s2d = _vm?.View2DSettings;
-        RootCanvas.Background = HexBrush(s2d?.CanvasBackground, "#3a3a5a");
+        Scroller.Background   = HexBrush(s2d?.CanvasBackground, "#3a3a5a");
+        RootCanvas.Background = Brushes.Transparent;
 
         int pagesWide = _vm?.PagesWide ?? 1;
         int pagesTall = _vm?.PagesTall ?? 1;
