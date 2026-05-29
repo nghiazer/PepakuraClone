@@ -1,7 +1,7 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-29 (session 41 — Toolbar UX + Status Bar + Page label contrast; branch `feat/toolbar-ux`)
-> **Branch:** `feat/toolbar-ux`  (base: `fix/perf-overlap-detector` @ v0.0.3.H → current: v0.0.4.A)
+> **Last updated:** 2026-05-29 (session 42 — Settings dialog UX overhaul; branch `feat/toolbar-ux`)
+> **Branch:** `feat/toolbar-ux`  (base: `fix/perf-overlap-detector` @ v0.0.3.H → current: v0.0.4.B)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
 > **History archive:** see [`BUGS_HISTORY.md`](BUGS_HISTORY.md) for all prior bug/tech-debt records
@@ -87,11 +87,28 @@ No circular dependencies. Domain has zero external dependencies.
 
 | Item | Result |
 |------|--------|
-| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 7 warnings (NuGet NU1603 only) |
+| `dotnet build 4H-Unfolder.sln` | ✅ 0 errors, 5 warnings (NuGet NU1603 only) |
 | `dotnet test` | ✅ 56 / 56 passed |
 | `dotnet run --project src/FourHUnfolder.App` | ✅ App opens maximized; PDO files auto-unfold on load |
 | Published `4H-Unfolder.exe` **v0.0.3.H** (win-x64, self-contained) | ✅ Session 40 |
 | Published `4H-Unfolder.exe` **v0.0.4.A** (win-x64, self-contained) | ✅ Session 41 |
+| Published `4H-Unfolder.exe` **v0.0.4.B** (win-x64, self-contained) | ✅ Session 42 |
+
+---
+
+## Session 42 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Branch** | `feat/toolbar-ux` continuing @ v0.0.4.A → v0.0.4.B |
+| **GroupBox consolidation** | `SettingsDialog.xaml`: reduced from 22 GroupBoxes across 4 tabs → 8 GroupBoxes (3D: 6→2, 2D: 9→3, Print: 5→2, General: 2→1). Sub-headings use new `SubHead` TextBlock style instead of nested GroupBox. |
+| **Unified grid layout** | Each GroupBox now uses a single outer Grid with fixed 3-column layout (190px label / `*` control / 64px numeric) + RowDefinitions. Eliminates per-row `<Grid.ColumnDefinitions>` repetition and the mix of 190/28/110, 190/140/40, 190/140/50 etc. widths. |
+| **Slider + NumericBox two-way** | All 19 sliders: static TextBlock → `NumericBox` TextBox with `Mode=TwoWay, UpdateSourceTrigger=LostFocus`. Kéo slider → textbox cập nhật; gõ số → Tab/click ra → slider nhảy. New `NumericBox` style (BasedOn InputBox, Width=58, TextAlignment=Right). |
+| **Footer buttons fix** | Height 30→34 for all 4 buttons (OK/Apply/Cancel/Reset). Added `HorizontalContentAlignment="Center" VerticalContentAlignment="Center"`. Removed space-padding hack `"  OK  "` → `"OK"`. Fixes "Applv" clipping bug. |
+| **Scroll reset on tab switch** | `SettingsDialog.xaml.cs` `NavList_SelectionChanged`: added `ContentScroller.ScrollToVerticalOffset(0)`. ScrollViewer named `x:Name="ContentScroller"`. |
+| **Bug fix (review)** | `ContentScroller.ScrollToTop()` không phải WPF API → fixed to `ScrollToVerticalOffset(0)`. |
+| **Version** | `0.0.4.0 → 0.0.4.1` (v0.0.4.A → v0.0.4.B) |
+| **Tests** | 56 / 56 pass |
 
 ---
 
@@ -106,20 +123,6 @@ No circular dependencies. Domain has zero external dependencies.
 | **StatusZoomText** | `MainViewModel.cs`: Added `StatusZoomText` computed property (% of `DefaultPixelsPerMm`), `OnPixelsPerMmChanged` partial to notify on scroll-zoom, and `OnSettingsChanged` notifies when default zoom changes in Settings. |
 | **Bug fix (review)** | `StatusZoomText` baseline fixed from hardcoded `3.0` → `_settingsService.Current.View2D.DefaultPixelsPerMm`, preventing wrong % when user changes Default zoom in Settings. |
 | **Version** | `0.0.3.8 → 0.0.4.0` (v0.0.3.H → v0.0.4.A) |
-| **Tests** | 56 / 56 pass |
-
----
-
-## Session 40 — Changes
-
-| Item | Detail |
-|------|--------|
-| **Branch** | `fix/perf-overlap-detector` continuing @ v0.0.3.G → v0.0.3.H |
-| **Remove 2D canvas inner bounder** | `DrawPaper()` (`PatternCanvasControl.xaml.cs`): changed `RootCanvas.Background = HexBrush(canvasBg)` → `Scroller.Background = HexBrush(canvasBg)` + `RootCanvas.Background = Brushes.Transparent`. Previously `RootCanvas` had a fixed Width/Height forming a visible rectangle against `Canvas2DScrollerBg`, creating the "inner bounder" look. Now the whole 2D view is one uniform color. |
-| **Theme sync** | `DarkTheme.xaml`: `Canvas2DScrollerBg` `#2a2a4a` → `#3a3a5a`; `LightTheme.xaml`: `Canvas2DScrollerBg` `#cdd2de` → `#e8eaf0` — theme fallback before code-behind runs is now seamless with `CanvasBackground` defaults. |
-| **Settings label** | `SettingsDialog.xaml`: "Canvas background" → "2D view background" to reflect new scope. |
-| **Code review** | No issues found in either this session's canvas change or session 39's OverlapDetector change. |
-| **Version** | `0.0.3.7 → 0.0.3.8` (v0.0.3.G → v0.0.3.H) |
 | **Tests** | 56 / 56 pass |
 
 ---
@@ -224,6 +227,6 @@ App/Assets/             app.ico (6 sizes) logo.png
 
 ## Recommended Next Steps
 
-1. **Merge `feat/toolbar-ux` → `main`** — branch is stable at v0.0.4.A; toolbar UX + status bar restructure applied
+1. **Merge `feat/toolbar-ux` → `main`** — branch is stable at v0.0.4.B; toolbar UX + settings dialog overhaul applied
 2. **Multi-page auto-layout** — allow pieces to flow across multiple pages automatically during auto-arrange
-3. **Tiếp tục UX polish** — Vấn đề 1 (3D viewport controls), Vấn đề 3 (Settings discoverability)
+3. **Tiếp tục UX polish** — Vấn đề 1 (3D viewport controls)

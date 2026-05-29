@@ -8,7 +8,7 @@
 A Pepakura-style paper model unfolder built with **WPF / .NET 8**.  
 Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, and export to SVG or PDF.
 
-> Current version: **v0.0.3.H** (win-x64 self-contained EXE) — Performance + UX polish
+> Current version: **v0.0.4.B** (win-x64 self-contained EXE) — Settings dialog UX overhaul
 
 ---
 
@@ -16,8 +16,8 @@ Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, a
 
 | Package | Link |
 |---------|------|
-| **Installer** (recommended) | [4H-Unfolder-v0.0.3.H-setup.exe](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.3.H/4H-Unfolder-v0.0.3.H-setup.exe) |
-| **Portable ZIP** | [4H-Unfolder-v0.0.3.H-portable.zip](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.3.H/4H-Unfolder-v0.0.3.H-portable.zip) |
+| **Installer** (recommended) | [4H-Unfolder-v0.0.4.B-setup.exe](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.B/4H-Unfolder-v0.0.4.B-setup.exe) |
+| **Portable ZIP** | [4H-Unfolder-v0.0.4.B-portable.zip](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.B/4H-Unfolder-v0.0.4.B-portable.zip) |
 
 > **No runtime required** — fully self-contained win-x64 binary.  
 > Requires Windows 10 / 11 (x64).
@@ -125,14 +125,15 @@ Edge visual key:
 | Click piece (2-D) | Bidirectional sync to 3-D selection |
 
 ### Settings dialog (⚙)
-Four panels — all persisted to `%AppData%\4H-Unfolder\settings.json`:
+Four panels — all persisted to `%AppData%\4H-Unfolder\settings.json`.  
+All numeric sliders have a companion TextBox for direct number entry (two-way binding). Switching panels resets scroll to top.
 
-| Panel | Notable options |
-|-------|----------------|
-| **3D View** | Background · Display mode (Solid / SolidEdges / Wireframe) · Face/back-face color · Opacity · Edge overlay · Lighting · Camera FOV/clip planes · **Edge-Edit hover colors** |
-| **2D View** | Canvas & paper color · Grid (show/size/color) · Fold/cut line style · Glue tabs · Face numbers · Edge ID labels & arrows · Piece gap · Snap-to-grid |
-| **Print** | Margin · Bleed · SVG scale · Tab shape/angle/depth · Alternate flaps · Grayscale |
-| **General** | Display unit (mm / inch) · **Light / Dark theme** |
+| Panel | GroupBoxes | Notable options |
+|-------|-----------|----------------|
+| **3D View** | Environment · Mesh, Camera & Lighting | Background · Display mode (Solid/SolidEdges/Wireframe) · Face/back-face color · Opacity · Camera FOV/clip · Edge overlay · Edge-Edit hover colors · Lighting |
+| **2D View** | Canvas & Grid Setup · Lines & Interaction · Layout & Annotations | Canvas & paper color · Grid (show/size/color) · Fold/cut line style · Edge hover + ID labels · Piece gap · Snap-to-grid · Glue tabs · Face numbers |
+| **Print** | Page Layout & Tab Geometry · Export Content Options | Margin · Bleed · SVG scale · Tab shape/angle/depth · Alternate flaps · Fold/cut line style (print) · Grayscale |
+| **General** | App Preferences | Display unit (mm / inch) · **Light / Dark theme** |
 
 ### Save / Load project (`.4hu`)
 - Self-contained ZIP bundle: mesh file + textures + full session state
