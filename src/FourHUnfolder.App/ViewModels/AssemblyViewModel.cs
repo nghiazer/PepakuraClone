@@ -15,14 +15,18 @@ namespace FourHUnfolder.App.ViewModels;
 /// <summary>
 /// ViewModel for the Assembly Animation window.
 ///
-/// Animation — two phases per step
-/// ─────────────────────────────────
-/// Phase 1 (t ∈ [0, 0.5])  — Paper-fold: each face rotates around its shared
+/// Animation — three phases per step
+/// ────────────────────────────────────
+/// Phase 0 (t ∈ [0, 1/3])  — Lift-off: piece starts at its 2-D canvas layout
+///   position (projected onto the baseY flat plane) and arcs upward then
+///   translates to the fold-origin position.  Uses LiftLerp with a sin arc.
+///
+/// Phase 1 (t ∈ [1/3, 2/3]) — Paper-fold: each face rotates around its shared
 ///   fold edge with its parent (BFS spanning tree per piece) from coplanar flat
 ///   to the correct 3-D dihedral angle, while the root face stays fixed in the
 ///   unfolded-layout plane.  Uses accumulated System.Numerics.Matrix4x4.
 ///
-/// Phase 2 (t ∈ [0.5, 1.0]) — Fly-in: the fully-folded 3-D shape translates
+/// Phase 2 (t ∈ [2/3, 1.0]) — Fly-in: the fully-folded 3-D shape translates
 ///   (per-vertex lerp) from the flat-plane position to its final 3-D position
 ///   in the assembled model.
 ///
@@ -31,8 +35,8 @@ namespace FourHUnfolder.App.ViewModels;
 /// Assembled pieces and the current piece display the real mesh texture (per
 /// material).  Current piece also gets a semi-transparent amber EmissiveMaterial
 /// overlay so it visually "glows" on top of the texture.
-/// Ghost (upcoming) pieces are rendered as a translucent solid — texture at
-/// near-zero opacity would look bad.
+/// Ghost (upcoming) pieces are rendered at their canvas layout positions as a
+/// translucent solid — texture at near-zero opacity would look bad.
 /// </summary>
 public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
 {
@@ -50,28 +54,31 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
         public required TriData[]      Tris         { get; init; }
     }
 
-    /// Per-triangle data for all three animation states.
+    /// Per-triangle data for all four animation states.
     private readonly struct TriData
     {
         public readonly int     FaceId;
-        public readonly int     VA, VB, VC;              // mesh vertex IDs
-        public readonly Vector3 FlatA,  FlatB,  FlatC;  // 2-D unfolded, on baseY plane
-        public readonly Vector3 FoldA,  FoldB,  FoldC;  // folded to 3-D shape, still at flat plane
-        public readonly Vector3 FinalA, FinalB, FinalC; // final 3-D world positions
-        public readonly Point   UV_A,   UV_B,   UV_C;
+        public readonly int     VA, VB, VC;                  // mesh vertex IDs
+        public readonly Vector3 CanvasA, CanvasB, CanvasC;  // Phase 0 start: canvas layout on baseY plane
+        public readonly Vector3 FlatA,   FlatB,   FlatC;    // 2-D unfolded, on baseY plane
+        public readonly Vector3 FoldA,   FoldB,   FoldC;    // folded to 3-D shape, still at flat plane
+        public readonly Vector3 FinalA,  FinalB,  FinalC;   // final 3-D world positions
+        public readonly Point   UV_A,    UV_B,    UV_C;
         public readonly int     MaterialId;
 
         public TriData(int faceId, int va, int vb, int vc,
-            Vector3 flatA,  Vector3 flatB,  Vector3 flatC,
-            Vector3 foldA,  Vector3 foldB,  Vector3 foldC,
-            Vector3 finalA, Vector3 finalB, Vector3 finalC,
+            Vector3 canvasA, Vector3 canvasB, Vector3 canvasC,
+            Vector3 flatA,   Vector3 flatB,   Vector3 flatC,
+            Vector3 foldA,   Vector3 foldB,   Vector3 foldC,
+            Vector3 finalA,  Vector3 finalB,  Vector3 finalC,
             Point uvA, Point uvB, Point uvC, int matId)
         {
-            FaceId = faceId; VA = va; VB = vb; VC = vc;
-            FlatA  = flatA;  FlatB  = flatB;  FlatC  = flatC;
-            FoldA  = foldA;  FoldB  = foldB;  FoldC  = foldC;
-            FinalA = finalA; FinalB = finalB; FinalC = finalC;
-            UV_A   = uvA;    UV_B   = uvB;    UV_C   = uvC;
+            FaceId  = faceId; VA = va; VB = vb; VC = vc;
+            CanvasA = canvasA; CanvasB = canvasB; CanvasC = canvasC;
+            FlatA   = flatA;  FlatB   = flatB;  FlatC   = flatC;
+            FoldA   = foldA;  FoldB   = foldB;  FoldC   = foldC;
+            FinalA  = finalA; FinalB  = finalB; FinalC  = finalC;
+            UV_A    = uvA;    UV_B    = uvB;    UV_C    = uvC;
             MaterialId = matId;
         }
     }
@@ -84,14 +91,23 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
         public required int FaceCount     { get; init; }
     }
 
+    private readonly record struct SceneBounds(
+        float BaseY, float ModelMinY, float ModelMaxY,
+        float ModelCx, float ModelCz, float CanvasXZRadius,
+        float StageScale, float StageY, float RawModelCenterY, float StageModelTop);
+
     // ── constants ─────────────────────────────────────────────────────────────
-    private const double AnimDurationMs  = 1200;  // Phase 1: 0→600ms  Phase 2: 600→1200ms
-    private const double PauseDurationMs = 500;
-    private const double FoldPhaseEnd    = 0.5;   // t-fraction where Phase 1 ends
+    private const double AnimDurationMs     = 1800;       // 600ms per phase × 3
+    private const double PauseDurationMs    = 500;
+    private const double LiftPhaseEnd       = 1.0 / 3.0; // Phase 0 ends at t ≈ 0.333
+    private const double FoldPhaseEnd       = 2.0 / 3.0; // Phase 1 ends at t ≈ 0.667
+    private const float  LiftHeightFraction = 0.3f;       // arc peak as fraction of model height
 
     // ── fields ────────────────────────────────────────────────────────────────
     private readonly PieceAnimData[]                         _pieceData;
     private readonly StepInfo[]                              _stepInfos;
+    private readonly float                                   _liftHeight;
+    private readonly SceneBounds                             _bounds;
     private readonly IReadOnlyDictionary<int, BitmapImage?>? _materialBitmaps;
     private readonly bool                                     _hasTexture;
 
@@ -146,6 +162,26 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
 
     public string StepCountText => $"{CurrentStep + 1} / {_stepInfos.Length}";
 
+    /// Camera position + look-direction that frames both the flat canvas plane (bottom)
+    /// and the assembled 3-D model (top) simultaneously at window open.
+    public (Point3D Position, Vector3D LookDirection) CameraHint
+    {
+        get
+        {
+            float sceneH  = _bounds.StageModelTop - _bounds.BaseY;
+            float midY    = (_bounds.BaseY + _bounds.StageModelTop) * 0.5f;
+            float radius  = MathF.Max(sceneH, 2f * _bounds.CanvasXZRadius);
+            float camDist = radius * 1.6f;
+            // 30° elevation, 45° azimuth — classic 3/4 view framing both stages
+            float camX = _bounds.ModelCx + camDist * 0.612f;  // cos(30°)*cos(45°)
+            float camY = midY            + camDist * 0.500f;  // sin(30°)
+            float camZ = _bounds.ModelCz + camDist * 0.612f;
+            var pos  = new Point3D(camX, camY, camZ);
+            var look = new Vector3D(_bounds.ModelCx - camX, midY - camY, _bounds.ModelCz - camZ);
+            return (pos, look);
+        }
+    }
+
     // ── constructor ───────────────────────────────────────────────────────────
 
     public AssemblyViewModel(
@@ -158,7 +194,7 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
         _materialBitmaps = materialBitmaps;
         _hasTexture      = materialBitmaps?.Values.Any(b => b != null) == true;
 
-        (_pieceData, _stepInfos) = BuildAssemblyData(mesh, unfoldResult, pieces, scaleMmPerUnit);
+        (_pieceData, _stepInfos, _liftHeight, _bounds) = BuildAssemblyData(mesh, unfoldResult, pieces, scaleMmPerUnit);
 
         _timer = new DispatcherTimer(DispatcherPriority.Render)
         {
@@ -289,23 +325,32 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
     private Model3DGroup BuildFrame(int stepIdx, double t)
     {
         var group = new Model3DGroup();
+        AppendFinalModelGhost(group);
 
-        // ── Split raw t into fold and fly sub-phases ──────────────────────────
-        double tFold, tFly;
-        if (t <= FoldPhaseEnd)
+        // ── Split raw t into three sub-phases ────────────────────────────────
+        double tLift, tFold, tFly;
+        if (t <= LiftPhaseEnd)
         {
-            tFold = SmoothStep(t / FoldPhaseEnd);
+            tLift = SmoothStep(t / LiftPhaseEnd);
+            tFold = 0.0;
+            tFly  = 0.0;
+        }
+        else if (t <= FoldPhaseEnd)
+        {
+            tLift = 1.0;
+            tFold = SmoothStep((t - LiftPhaseEnd) / (FoldPhaseEnd - LiftPhaseEnd));
             tFly  = 0.0;
         }
         else
         {
+            tLift = 1.0;
             tFold = 1.0;
             tFly  = SmoothStep((t - FoldPhaseEnd) / (1.0 - FoldPhaseEnd));
         }
 
         // Precompute fold transforms for the current piece (Phase 1 only)
         Dictionary<int, Matrix4x4>? foldTransforms = null;
-        if (tFly == 0.0 && stepIdx < _pieceData.Length)
+        if (tFold > 0.0 && tFly == 0.0 && stepIdx < _pieceData.Length)
         {
             var cur = _pieceData[stepIdx];
             foldTransforms = ComputeFoldTransforms(cur.FoldTree, cur.FlatVertexPos, (float)tFold);
@@ -321,13 +366,13 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
             else if (pd.StepIndex < stepIdx)
                 AppendStatic(group, pd, isAssembled: true);
             else
-                AppendCurrent(group, pd, foldTransforms, tFold, tFly);
+                AppendCurrent(group, pd, foldTransforms, tLift, tFold, tFly);
         }
 
         return group;
     }
 
-    // ── ghost pieces (future) — translucent flat layout ───────────────────────
+    // ── ghost pieces (future) — translucent at canvas layout positions ────────
 
     private static void AppendGhost(Model3DGroup group, PieceAnimData pd)
     {
@@ -337,15 +382,36 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
 
         foreach (var tri in pd.Tris)
         {
-            positions.Add(ToP3D(tri.FlatA));
-            positions.Add(ToP3D(tri.FlatB));
-            positions.Add(ToP3D(tri.FlatC));
+            positions.Add(ToP3D(tri.CanvasA));
+            positions.Add(ToP3D(tri.CanvasB));
+            positions.Add(ToP3D(tri.CanvasC));
             indices.Add(idx); indices.Add(idx + 1); indices.Add(idx + 2);
             idx += 3;
         }
 
         var geo = new MeshGeometry3D { Positions = positions, TriangleIndices = indices };
         var mat = new DiffuseMaterial(new SolidColorBrush(Color.FromArgb(30, 0xcc, 0xdd, 0xff)));
+        group.Children.Add(new GeometryModel3D(geo, mat));
+    }
+
+    // ── final model ghost — very faint destination hint, shown throughout ────
+
+    private void AppendFinalModelGhost(Model3DGroup group)
+    {
+        var positions = new Point3DCollection();
+        var indices   = new Int32Collection();
+        int idx = 0;
+        foreach (var pd in _pieceData)
+            foreach (var tri in pd.Tris)
+            {
+                positions.Add(ToP3D(ToStage(tri.FinalA)));
+                positions.Add(ToP3D(ToStage(tri.FinalB)));
+                positions.Add(ToP3D(ToStage(tri.FinalC)));
+                indices.Add(idx); indices.Add(idx + 1); indices.Add(idx + 2);
+                idx += 3;
+            }
+        var geo = new MeshGeometry3D { Positions = positions, TriangleIndices = indices };
+        var mat = new DiffuseMaterial(new SolidColorBrush(Color.FromArgb(22, 0xff, 0xcc, 0x66)));
         group.Children.Add(new GeometryModel3D(geo, mat));
     }
 
@@ -359,8 +425,8 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
 
             var (positions, indices, normals, uvCoords, bmp) =
                 BuildGeometryBuffers(tris, pd, (tri) =>
-                    isAssembled ? (tri.FinalA, tri.FinalB, tri.FinalC)
-                                : (tri.FlatA,  tri.FlatB,  tri.FlatC));
+                    isAssembled ? (ToStage(tri.FinalA), ToStage(tri.FinalB), ToStage(tri.FinalC))
+                                : (tri.FlatA,            tri.FlatB,           tri.FlatC));
 
             var geo  = MakeGeometry(positions, indices, normals, uvCoords);
             var mat  = MakeAssembledMaterial(bmp, uvCoords != null);
@@ -369,15 +435,18 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
         }
     }
 
-    // ── current piece — animated (fold + fly), textured with amber glow ───────
+    // ── current piece — animated (lift + fold + fly), textured with amber glow ─
 
     private void AppendCurrent(
-        Model3DGroup               group,
-        PieceAnimData              pd,
+        Model3DGroup                group,
+        PieceAnimData               pd,
         Dictionary<int, Matrix4x4>? foldTransforms,
-        double                     tFold,
-        double                     tFly)
+        double                      tLift,
+        double                      tFold,
+        double                      tFly)
     {
+        float liftY = (float)(_liftHeight * Math.Sin(Math.PI * tLift));
+
         foreach (var mg in pd.Tris.GroupBy(t => t.MaterialId))
         {
             var tris = mg;
@@ -389,23 +458,25 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
 
                     if (tFly > 0.0)
                     {
-                        // Phase 2: lerp fold shape → final 3-D position
-                        a = LerpV(tri.FoldA,  tri.FinalA, tFly);
-                        b = LerpV(tri.FoldB,  tri.FinalB, tFly);
-                        c = LerpV(tri.FoldC,  tri.FinalC, tFly);
+                        // Phase 2: lerp fold shape → staged final position (toward camera)
+                        a = LerpV(tri.FoldA,  ToStage(tri.FinalA), tFly);
+                        b = LerpV(tri.FoldB,  ToStage(tri.FinalB), tFly);
+                        c = LerpV(tri.FoldC,  ToStage(tri.FinalC), tFly);
                     }
                     else if (foldTransforms != null &&
                              foldTransforms.TryGetValue(tri.FaceId, out var T))
                     {
-                        // Phase 1: fold via accumulated transform
+                        // Phase 1: fold via accumulated transform (unchanged)
                         a = Vector3.Transform(tri.FlatA, T);
                         b = Vector3.Transform(tri.FlatB, T);
                         c = Vector3.Transform(tri.FlatC, T);
                     }
                     else
                     {
-                        // Fallback: flat positions
-                        a = tri.FlatA; b = tri.FlatB; c = tri.FlatC;
+                        // Phase 0: arc lift from canvas position to flat fold-origin
+                        a = LiftLerp(tri.CanvasA, tri.FlatA, tLift, liftY);
+                        b = LiftLerp(tri.CanvasB, tri.FlatB, tLift, liftY);
+                        c = LiftLerp(tri.CanvasC, tri.FlatC, tLift, liftY);
                     }
 
                     return (a, b, c);
@@ -598,6 +669,19 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
     private static Vector3 LerpV(Vector3 from, Vector3 to, double t) =>
         from + (float)t * (to - from);
 
+    /// Scales FinalA/B/C relative to raw model centroid, then lifts to stageY.
+    /// Ensures the assembled model appears above the canvas at canvas-matching scale.
+    private Vector3 ToStage(Vector3 raw) => new(
+        (raw.X - _bounds.ModelCx)         * _bounds.StageScale + _bounds.ModelCx,
+        (raw.Y - _bounds.RawModelCenterY) * _bounds.StageScale + _bounds.StageY,
+        (raw.Z - _bounds.ModelCz)         * _bounds.StageScale + _bounds.ModelCz);
+
+    /// Lerps XZ from canvas to flat, adds a sin arc in Y so the piece lifts then lands.
+    private static Vector3 LiftLerp(Vector3 canvas, Vector3 flat, double t, float liftY) =>
+        new((float)((1 - t) * canvas.X + t * flat.X),
+            flat.Y + liftY,
+            (float)((1 - t) * canvas.Z + t * flat.Z));
+
     private static Point3D   ToP3D(Vector3 v) => new(v.X, v.Y, v.Z);
     private static Vector3D  ToV3D(Vector3 v) => new(v.X, v.Y, v.Z);
 
@@ -610,20 +694,21 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
 
     // ── assembly data builder ─────────────────────────────────────────────────
 
-    private static (PieceAnimData[], StepInfo[]) BuildAssemblyData(
+    private static (PieceAnimData[], StepInfo[], float liftHeight, SceneBounds bounds) BuildAssemblyData(
         Mesh                          mesh,
         UnfoldResult                  unfoldResult,
         IReadOnlyList<PieceViewModel> pieces,
         double                        scaleMmPerUnit)
     {
-        if (pieces.Count == 0 || scaleMmPerUnit <= 0) return ([], []);
+        if (pieces.Count == 0 || scaleMmPerUnit <= 0) return ([], [], 0f, default);
 
         // 1. Determine assembly order via AssemblyPlanner
+        var pieceLookup = pieces.ToDictionary(p => p.GroupId);
         var pieceGroups = pieces
             .Select(p => (p.GroupId, p.Faces.Select(f => f.FaceId).ToArray()))
             .ToArray();
         var steps = AssemblyPlanner.Build(mesh, pieceGroups);
-        if (steps.Count == 0) return ([], []);
+        if (steps.Count == 0) return ([], [], 0f, default);
 
         // 2. UnfoldedFace lookup (faceId → UnfoldedFace)
         var unfoldMap = unfoldResult.Faces.ToDictionary(f => f.FaceId);
@@ -634,7 +719,7 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
         float modelCx   = mesh.Vertices.Count > 0 ? mesh.Vertices.Average(v => v.Position.X) : 0f;
         float modelCz   = mesh.Vertices.Count > 0 ? mesh.Vertices.Average(v => v.Position.Z) : 0f;
         float modelH    = Math.Max(modelMaxY - modelMinY, 0.001f);
-        float baseY     = modelMinY - modelH * 0.7f;  // flat plane well below model
+        float baseY     = modelMinY - modelH * 1.5f;  // flat plane below model — wider gap for clear bottom-top staging
 
         double sumX = 0, sumZ = 0; int vtxN = 0;
         foreach (var uf in unfoldResult.Faces)
@@ -643,13 +728,25 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
             sumZ += uf.V0.Y + uf.V1.Y + uf.V2.Y;
             vtxN += 3;
         }
-        double patCx = vtxN > 0 ? sumX / vtxN / scaleMmPerUnit : 0;
-        double patCz = vtxN > 0 ? sumZ / vtxN / scaleMmPerUnit : 0;
+        double patCx = vtxN > 0 ? sumX / vtxN : 0;  // raw model units (same space as mesh vertices)
+        double patCz = vtxN > 0 ? sumZ / vtxN : 0;
 
+        // u, v are in raw model units (edge-length-preserving unfold space).
+        // Centres the layout under the 3-D model at (modelCx, baseY, modelCz) without scaling.
         Vector3 ToFlatV(float u, float v) => new(
-            (float)(u / scaleMmPerUnit - patCx + modelCx),
+            (float)(u - patCx + modelCx),
             baseY,
-            (float)(v / scaleMmPerUnit - patCz + modelCz));
+            (float)(v - patCz + modelCz));
+
+        // Canvas mm position → same 3D flat-plane space as ToFlatV.
+        // FaceData vertices are piece-local mm; PositionX/Y is the centroid in mm.
+        // Divide by scaleMmPerUnit converts mm → raw model units, matching ToFlatV's input space.
+        Vector3 CanvasV(Point local, double posX, double posY, double cosR, double sinR)
+        {
+            double worldMmX = local.X * cosR - local.Y * sinR + posX;
+            double worldMmY = local.X * sinR + local.Y * cosR + posY;
+            return ToFlatV((float)(worldMmX / scaleMmPerUnit), (float)(worldMmY / scaleMmPerUnit));
+        }
 
         // 4. Build per-step data
         var pieceDataList = new List<PieceAnimData>(steps.Count);
@@ -676,7 +773,20 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
             // 4c. Pre-compute fold positions at t=1.0 (fully folded, at flat plane)
             var foldTransformsAtOne = ComputeFoldTransforms(foldTree, flatVertexPos, 1.0f);
 
-            // 4d. Per-face TriData
+            // 4d. Resolve canvas layout transform for this piece (Phase 0 start positions)
+            pieceLookup.TryGetValue(step.GroupId, out var pvm);
+            double rotRad = pvm != null ? pvm.Rotation * Math.PI / 180.0 : 0.0;
+            double cosR   = Math.Cos(rotRad);
+            double sinR   = Math.Sin(rotRad);
+            double posX   = pvm?.PositionX ?? 0.0;
+            double posY   = pvm?.PositionY ?? 0.0;
+
+            // FaceId → FaceData lookup for piece-local mm vertices
+            var faceDataLookup = pvm != null
+                ? pvm.Faces.ToDictionary(f => f.FaceId)
+                : new Dictionary<int, PieceViewModel.FaceData>(0);
+
+            // 4e. Per-face TriData
             bool pieceHasUVs = false;
             var  triList     = new List<TriData>(faceIds.Length);
 
@@ -692,6 +802,19 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
                 var flatA = flatVertexPos.GetValueOrDefault(mf.A, va3);
                 var flatB = flatVertexPos.GetValueOrDefault(mf.B, vb3);
                 var flatC = flatVertexPos.GetValueOrDefault(mf.C, vc3);
+
+                // Canvas positions: piece-local mm → rotated → world mm → 3D flat space
+                Vector3 canvasA, canvasB, canvasC;
+                if (faceDataLookup.TryGetValue(fid, out var fd))
+                {
+                    canvasA = CanvasV(fd.V0, posX, posY, cosR, sinR);
+                    canvasB = CanvasV(fd.V1, posX, posY, cosR, sinR);
+                    canvasC = CanvasV(fd.V2, posX, posY, cosR, sinR);
+                }
+                else
+                {
+                    canvasA = flatA; canvasB = flatB; canvasC = flatC;
+                }
 
                 // Fold positions at t=1
                 Vector3 foldA, foldB, foldC;
@@ -716,9 +839,10 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
 
                 triList.Add(new TriData(
                     fid, mf.A, mf.B, mf.C,
-                    flatA,  flatB,  flatC,
-                    foldA,  foldB,  foldC,
-                    va3,    vb3,    vc3,
+                    canvasA, canvasB, canvasC,
+                    flatA,   flatB,   flatC,
+                    foldA,   foldB,   foldC,
+                    va3,     vb3,     vc3,
                     uvA, uvB, uvC, mf.MaterialId));
             }
 
@@ -741,7 +865,36 @@ public sealed partial class AssemblyViewModel : ObservableObject, IDisposable
             });
         }
 
-        return ([.. pieceDataList], [.. stepInfoList]);
+        // Compute XZ radius of canvas layout for camera framing
+        float canvasXZR = 0f;
+        foreach (var pd in pieceDataList)
+            foreach (var tri in pd.Tris)
+            {
+                canvasXZR = MathF.Max(canvasXZR, MathF.Sqrt(MathF.Pow(tri.CanvasA.X - modelCx, 2) + MathF.Pow(tri.CanvasA.Z - modelCz, 2)));
+                canvasXZR = MathF.Max(canvasXZR, MathF.Sqrt(MathF.Pow(tri.CanvasB.X - modelCx, 2) + MathF.Pow(tri.CanvasB.Z - modelCz, 2)));
+                canvasXZR = MathF.Max(canvasXZR, MathF.Sqrt(MathF.Pow(tri.CanvasC.X - modelCx, 2) + MathF.Pow(tri.CanvasC.Z - modelCz, 2)));
+            }
+
+        // Compute raw model XZ radius (for stage scale so ghost matches canvas visually)
+        float rawModelXZR = 0f;
+        foreach (var v in mesh.Vertices)
+            rawModelXZR = MathF.Max(rawModelXZR,
+                MathF.Sqrt(MathF.Pow(v.Position.X - modelCx, 2) + MathF.Pow(v.Position.Z - modelCz, 2)));
+
+        // Scale assembled model to ~65% of canvas XZ radius; minimum 1.2× so pieces GROW in Phase 2
+        float stageScale = rawModelXZR > 0.001f
+            ? MathF.Max(1.2f, canvasXZR * 0.65f / rawModelXZR)
+            : 1.2f;
+
+        // Staged model center: one model-height above the raw model top (clearly above canvas, toward camera)
+        float rawModelCenterY = (modelMinY + modelMaxY) * 0.5f;
+        float stageY          = modelMaxY + modelH * 1.0f;
+        float stageModelTop   = stageY + stageScale * (modelMaxY - rawModelCenterY);
+
+        float      liftHeight  = modelH * LiftHeightFraction;
+        SceneBounds sceneBounds = new(baseY, modelMinY, modelMaxY, modelCx, modelCz, canvasXZR,
+                                      stageScale, stageY, rawModelCenterY, stageModelTop);
+        return ([.. pieceDataList], [.. stepInfoList], liftHeight, sceneBounds);
     }
 
     // ── IDisposable ───────────────────────────────────────────────────────────

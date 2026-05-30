@@ -8,7 +8,7 @@
 A Pepakura-style paper model unfolder built with **WPF / .NET 8**.  
 Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, and export to SVG or PDF.
 
-> Current version: **v0.0.4.C** (win-x64 self-contained EXE) — Dialog UX overhaul × 3
+> Current version: **v0.0.4.F** (win-x64 self-contained EXE) — Assembly Animation: 3-phase lift-off + fold + fly-toward-camera
 
 ---
 
@@ -16,8 +16,8 @@ Load a 3-D mesh, unfold it into a printable 2-D pattern, customise the layout, a
 
 | Package | Link |
 |---------|------|
-| **Installer** (recommended) | [4H-Unfolder-v0.0.4.C-setup.exe](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.C/4H-Unfolder-v0.0.4.C-setup.exe) |
-| **Portable ZIP** | [4H-Unfolder-v0.0.4.C-portable.zip](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.C/4H-Unfolder-v0.0.4.C-portable.zip) |
+| **Installer** (recommended) | [4H-Unfolder-v0.0.4.F-setup.exe](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.F/4H-Unfolder-v0.0.4.F-setup.exe) |
+| **Portable ZIP** | [4H-Unfolder-v0.0.4.F-portable.zip](https://github.com/NghiaZer/4H-Unfolder/releases/download/v0.0.4.F/4H-Unfolder-v0.0.4.F-portable.zip) |
 
 > **No runtime required** — fully self-contained win-x64 binary.  
 > Requires Windows 10 / 11 (x64).
@@ -111,14 +111,17 @@ Edge visual key:
 - Click pivot on canvas → drag handle to rotate piece to any angle — undoable
 
 ### Assembly animation (🎬)
-- Step-by-step fold guide showing how to assemble the model
-- Phase 1: true paper-fold — faces rotate around shared fold edges via accumulated Matrix4x4
-- Phase 2: fly-in — folded shape translates to its final 3-D position
-- Per-material texture on each piece; amber highlight on current step
+- Step-by-step 3-phase fold guide — all three phases per assembly step:
+  - **Phase 0** Lift-off: piece starts flat at its exact 2-D canvas layout position, then arcs upward (sin lift) before settling at the fold origin
+  - **Phase 1** Paper-fold: faces rotate around shared fold edges via accumulated `Matrix4x4` (BFS spanning tree)
+  - **Phase 2** Fly toward camera: folded shape translates + scales to a staged model position directly above the canvas — visually grows as it rises, making pieces appear to fly toward the viewer
+- Unified scene layout: 2-D canvas plane at the bottom, assembled 3-D model stage at the top; camera auto-frames both on open
+- Faint amber ghost of fully assembled model always visible at the top (destination hint)
+- Per-material texture on each piece; amber emissive highlight on current step
 - **Step timeline slider** — drag to jump to any step instantly (two-way binding)
-- Controls toolbar: step description left · **⏮ ◀ ▶▶ ▶ ⏭** centred · colour legend right
-- Clean 3D viewport — legend (Current / Assembled / Upcoming) moved to toolbar, no overlay
-- Play / Pause auto-animation; step controls ⏮ ◀ ▶ ⏭
+- Controls toolbar: step description left · **⏮ ◀ ▶ ⏭** centred · colour legend right
+- Clean 3-D viewport — no overlay; legend moved to control bar
+- Play / Pause auto-animation
 
 ### 3-D face selection
 | Action | Result |

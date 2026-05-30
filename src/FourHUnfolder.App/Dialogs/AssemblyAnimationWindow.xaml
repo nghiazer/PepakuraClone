@@ -6,6 +6,7 @@
         Width="900" Height="700"
         MinWidth="640" MinHeight="480"
         WindowStartupLocation="CenterOwner"
+        Loaded="Window_Loaded"
         Background="{DynamicResource DialogBg}">
 
     <Window.Resources>

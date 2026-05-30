@@ -12,10 +12,10 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
 
     <!-- Version — bump suffix letter for patch releases within a minor version -->
-    <Version>0.0.4.2</Version>
-    <AssemblyVersion>0.0.4.2</AssemblyVersion>
-    <FileVersion>0.0.4.2</FileVersion>
-    <InformationalVersion>0.0.4.C — Dialog UX: UnfoldSetup grid + AssemblyAnimation slider+legend + ModelOrientation layout + toolbar icon fix</InformationalVersion>
+    <Version>0.0.4.5</Version>
+    <AssemblyVersion>0.0.4.5</AssemblyVersion>
+    <FileVersion>0.0.4.5</FileVersion>
+    <InformationalVersion>0.0.4.F — Phase 2: stage transform — fly toward camera, scale-matched ghost</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\FourHUnfolder.Application\FourHUnfolder.Application.csproj" />

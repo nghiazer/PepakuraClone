@@ -1,7 +1,7 @@
 # 4H-Unfolder — Session Progress Log
 
-> **Last updated:** 2026-05-29 (session 43 — Dialog UX refactor × 3: ModelOrientation + UnfoldSetup + AssemblyAnimation; branch `feat/toolbar-ux`)
-> **Branch:** `feat/toolbar-ux`  (base: `fix/perf-overlap-detector` @ v0.0.3.H → current: v0.0.4.C)
+> **Last updated:** 2026-05-30 (session 44 — Assembly Animation Phase 0 + Viewport polish + Stage Transform; branch `feat/assembly-phase0`)
+> **Branch:** `feat/assembly-phase0`  (base: `feat/toolbar-ux` @ v0.0.4.C → current: v0.0.4.F)
 > **Target framework:** .NET 8 / WPF
 > **SDK required:** `winget install Microsoft.DotNet.SDK.8`
 > **History archive:** see [`BUGS_HISTORY.md`](BUGS_HISTORY.md) for all prior bug/tech-debt records
@@ -94,6 +94,24 @@ No circular dependencies. Domain has zero external dependencies.
 | Published `4H-Unfolder.exe` **v0.0.4.A** (win-x64, self-contained) | ✅ Session 41 |
 | Published `4H-Unfolder.exe` **v0.0.4.B** (win-x64, self-contained) | ✅ Session 42 |
 | Published `4H-Unfolder.exe` **v0.0.4.C** (win-x64, self-contained) | ✅ Session 43 |
+| Published `4H-Unfolder.exe` **v0.0.4.D** (win-x64, self-contained) | ✅ Session 44 |
+| Published `4H-Unfolder.exe` **v0.0.4.E** (win-x64, self-contained) | ✅ Session 44 |
+| Published `4H-Unfolder.exe` **v0.0.4.F** (win-x64, self-contained) | ✅ Session 44 |
+
+---
+
+## Session 44 — Changes
+
+| Item | Detail |
+|------|--------|
+| **Branch** | New branch `feat/assembly-phase0` off `feat/toolbar-ux` @ v0.0.4.C → v0.0.4.E |
+| **Assembly Phase 0: Lift-off** | `AssemblyViewModel.cs`: Added `CanvasA/B/C` to `TriData` struct. Each animation step now has a Phase 0 (t∈[0,1/3]): piece starts flat at its 2D canvas layout position (on baseY plane, matching the 2D canvas XZ position) and arcs upward via sin-arc LiftLerp before settling at the flat fold-origin. Duration extended from 1200ms → 1800ms (600ms × 3 phases). `AppendGhost` now uses `CanvasA/B/C` so upcoming pieces preview at their canvas positions. |
+| **Viewport spatial layout** | `baseY = modelMinY - 1.5 × modelH` (was 0.7) for clearer bottom/top staging. `SceneBounds` record stores baseY + model extents + canvas XZRadius. `CameraHint` property computes a 30°/45° `PerspectiveCamera` framing both canvas plane (bottom) and 3D model (top). `AppendFinalModelGhost` renders faint amber (α=22) wireframe of full assembled model every frame as destination hint. |
+| **Camera setup** | `AssemblyAnimationWindow.xaml.cs` `Window_Loaded`: sets `Viewport3D.Camera` to `PerspectiveCamera` from `CameraHint` — FOV=40°, NearPlane=0.01, FarPlane=100k. XAML gains `Loaded="Window_Loaded"`. |
+| **Scale fix (critical)** | `BuildAssemblyData`: `patCx/patCz` and `ToFlatV` previously divided by `scaleMmPerUnit`, making flat/canvas positions `scaleMmPerUnit²` times smaller than the 3D model (e.g., 200× smaller for A4 OBJ models). Fixed to use raw model units throughout: `patCx = sumX/vtxN` (no scale), `ToFlatV(u,v) = (u - patCx + modelCx, baseY, ...)`. PDO files (scaleMmPerUnit=1) unaffected. `CanvasV` already passed raw model units via `÷scaleMmPerUnit`, now correctly matched to fixed `ToFlatV`. |
+| **Stage Transform (Phase 2)** | `BuildAssemblyData`: computes `rawModelXZR` + `stageScale = max(1.2, canvasXZR×0.65/rawModelXZR)` + `stageY = modelMaxY + modelH` + `stageModelTop`. New `ToStage(Vector3)` instance method scales+translates all `FinalA/B/C` usage: `AppendFinalModelGhost`, Phase 2 in `AppendCurrent`, `AppendStatic(isAssembled:true)`. `CameraHint` uses `StageModelTop` for sceneH. Effect: assembled ghost visually matches canvas scale; Phase 2 pieces grow (stageScale≥1.2) as they fly upward = clearly "toward camera". |
+| **Commits** | `9afbd24` Phase 0 (v0.0.4.D), `d77d0c2` Viewport layout + camera (v0.0.4.E), scale+stage fix (v0.0.4.F) |
+| **Tests** | 56 / 56 pass |
 
 ---
 
@@ -231,6 +249,6 @@ App/Assets/             app.ico (6 sizes) logo.png
 
 ## Recommended Next Steps
 
-1. **Merge `feat/toolbar-ux` → `main`** — branch is stable at v0.0.4.C; all dialog UX overhauls complete
+1. **Merge `feat/assembly-phase0` → `feat/toolbar-ux` → `main`** — both branches stable; assembly animation fully polished
 2. **Multi-page auto-layout** — allow pieces to flow across multiple pages automatically during auto-arrange
 3. **UX polish** — 3D viewport navigation controls (trackpad pinch-zoom, keyboard shortcuts)
